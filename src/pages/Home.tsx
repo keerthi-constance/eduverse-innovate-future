@@ -1,157 +1,207 @@
-
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import Navbar from '@/components/Navbar';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
 import { 
+  Heart, 
   GraduationCap, 
-  FlaskConical, 
-  CircleDollarSign, 
-  Diamond,
-  DiamondPercent,
-  Wallet,
-  Plus,
-  Search
+  Target, 
+  Users, 
+  DollarSign,
+  ArrowRight,
+  CheckCircle,
+  Star
 } from 'lucide-react';
 
-const Home = () => {
-  const stats = [
-    { label: 'Projects Funded', value: '2,847', icon: FlaskConical },
-    { label: 'ADA Raised', value: '1.2M', icon: CircleDollarSign },
-    { label: 'Students Supported', value: '12,456', icon: GraduationCap },
-    { label: 'NFTs Minted', value: '8,932', icon: Diamond }
-  ];
-
+const Home: React.FC = () => {
   const features = [
     {
-      icon: DiamondPercent,
-      title: 'NFT Donation Receipts',
-      description: 'Receive unique NFTs as proof of your contribution to student research projects.'
+      icon: <GraduationCap className="h-6 w-6" />,
+      title: "Student Research Funding",
+      description: "Connect talented Sri Lankan students with global donors to fund innovative research projects."
     },
     {
-      icon: FlaskConical,
-      title: 'Verified Research',
-      description: 'All projects undergo rigorous review to ensure legitimate academic research.'
+      icon: <Heart className="h-6 w-6" />,
+      title: "Transparent Donations",
+      description: "Every donation is recorded on the Cardano blockchain for complete transparency and traceability."
     },
     {
-      icon: CircleDollarSign,
-      title: 'Transparent Funding',
-      description: 'Track exactly how your ADA contributions are used with blockchain transparency.'
+      icon: <Target className="h-6 w-6" />,
+      title: "NFT Receipts",
+      description: "Receive unique NFT receipts for your donations as proof of contribution and impact."
+    },
+    {
+      icon: <Users className="h-6 w-6" />,
+      title: "Global Community",
+      description: "Join a community of donors and researchers working together to advance education and innovation."
     }
   ];
 
-  return (
-    <div className="min-h-screen bg-hero-gradient">
-      <Navbar />
-      
-      {/* Hero Section */}
-      <section className="pt-24 pb-16 px-4">
-        <div className="container mx-auto text-center">
-          <div className="max-w-4xl mx-auto animate-fade-in">
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-cyan-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">
-              Support Tomorrow's Innovators
-            </h1>
-            <p className="text-xl md:text-2xl text-gray-300 mb-8 leading-relaxed">
-              Empower student researchers worldwide through blockchain-powered crowdfunding. 
-              Fund breakthrough discoveries and earn exclusive NFT receipts.
-            </p>
-            
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-              <Button className="web3-button text-lg px-8 py-4">
-                <Wallet className="h-5 w-5 mr-2" />
-                Connect Wallet
-              </Button>
-              <Link to="/browse">
-                <Button variant="outline" className="text-lg px-8 py-4 border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500/10">
-                  <Search className="h-5 w-5 mr-2" />
-                  Browse Projects
-                </Button>
-              </Link>
-              <Link to="/create">
-                <Button variant="outline" className="text-lg px-8 py-4 border-2 border-violet-500 text-violet-400 hover:bg-violet-500/10">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Start a Project
-                </Button>
-              </Link>
-            </div>
+  const stats = [
+    { label: "Projects Funded", value: "150+", icon: <Target className="h-5 w-5" /> },
+    { label: "Students Supported", value: "200+", icon: <GraduationCap className="h-5 w-5" /> },
+    { label: "Total Donations", value: "50,000+ ADA", icon: <DollarSign className="h-5 w-5" /> },
+    { label: "Active Donors", value: "1,000+", icon: <Users className="h-5 w-5" /> }
+  ];
 
-            {/* Floating Animation Elements */}
-            <div className="relative">
-              <div className="absolute -top-10 left-10 animate-float">
-                <div className="w-16 h-16 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-full opacity-20 blur-xl"></div>
-              </div>
-              <div className="absolute -top-5 right-20 animate-float" style={{ animationDelay: '1s' }}>
-                <div className="w-12 h-12 bg-gradient-to-r from-violet-500 to-cyan-500 rounded-full opacity-30 blur-lg"></div>
-              </div>
+  return (
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="mb-8">
+            <Badge className="mb-4" variant="secondary">
+              Powered by Cardano Blockchain
+            </Badge>
+            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
+              Fund the Future of
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                {" "}Sri Lankan Research
+              </span>
+            </h1>
+            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+              Connect talented students with global donors through transparent, blockchain-powered funding. 
+              Every donation creates real impact and comes with NFT receipts.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button size="lg" asChild>
+                <Link to="/projects">
+                  <Heart className="h-5 w-5 mr-2" />
+                  Browse Projects
+                </Link>
+              </Button>
+              <Button variant="outline" size="lg" asChild>
+                <Link to="/create-project">
+                  <GraduationCap className="h-5 w-5 mr-2" />
+                  Create Project
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 px-4">
-        <div className="container mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
-              <Card key={index} className="glass-card p-6 text-center animate-scale-in" style={{ animationDelay: `${index * 0.1}s` }}>
-                <stat.icon className="h-8 w-8 mx-auto mb-3 text-cyan-400" />
-                <div className="text-3xl font-bold text-white mb-1">{stat.value}</div>
-                <div className="text-sm text-gray-400">{stat.label}</div>
-              </Card>
+              <div key={index} className="text-center">
+                <div className="flex justify-center mb-3">
+                  <div className="p-3 bg-blue-100 rounded-full">
+                    <div className="text-blue-600">{stat.icon}</div>
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</div>
+                <div className="text-gray-600">{stat.label}</div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-16 px-4">
-        <div className="container mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Why Choose EduFund?
             </h2>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              The future of academic funding is here. Transparent, secure, and rewarding.
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              We're revolutionizing how research gets funded through blockchain technology and global collaboration.
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
-              <Card key={index} className="glass-card p-8 text-center animate-fade-in" style={{ animationDelay: `${index * 0.2}s` }}>
-                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-2xl flex items-center justify-center">
-                  <feature.icon className="h-8 w-8 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
-                <p className="text-gray-400 leading-relaxed">{feature.description}</p>
+              <Card key={index} className="text-center hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex justify-center mb-4">
+                    <div className="p-3 bg-blue-100 rounded-full">
+                      <div className="text-blue-600">{feature.icon}</div>
+                    </div>
+                  </div>
+                  <CardTitle className="text-lg">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription>{feature.description}</CardDescription>
+                </CardContent>
               </Card>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 px-4">
-        <div className="container mx-auto">
-          <Card className="glass-card p-12 text-center">
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Ready to Support Innovation?
+      {/* How It Works Section */}
+      <section className="py-20 bg-gray-50 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              How It Works
             </h2>
-            <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-              Join thousands of supporters helping fund the next generation of groundbreaking research.
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Simple steps to fund research and make a difference
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button className="web3-button text-lg px-8 py-4">
-                <Wallet className="h-5 w-5 mr-2" />
-                Connect Wallet & Start
-              </Button>
-              <Link to="/browse">
-                <Button variant="outline" className="text-lg px-8 py-4 border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500/10">
-                  Explore Projects
-                </Button>
-              </Link>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold text-xl">1</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Browse Projects</h3>
+              <p className="text-gray-600">
+                Explore research projects from talented Sri Lankan students across various fields.
+              </p>
             </div>
-          </Card>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold text-xl">2</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Make a Donation</h3>
+              <p className="text-gray-600">
+                Connect your Cardano wallet and donate ADA to support the projects you believe in.
+              </p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold text-xl">3</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Get NFT Receipt</h3>
+              <p className="text-gray-600">
+                Receive a unique NFT receipt as proof of your contribution and track the project's progress.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Ready to Make a Difference?
+          </h2>
+          <p className="text-xl text-gray-600 mb-8">
+            Join thousands of donors supporting the next generation of Sri Lankan researchers and innovators.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button size="lg" asChild>
+              <Link to="/projects">
+                <Heart className="h-5 w-5 mr-2" />
+                Start Donating
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Link>
+            </Button>
+            <Button variant="outline" size="lg" asChild>
+              <Link to="/about">
+                Learn More
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
     </div>

@@ -1,312 +1,360 @@
-
-import { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import Navbar from '@/components/Navbar';
+import React from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useDashboardStats, useRecentActivity, useTopDonors, useTrendingProjects } from '../hooks/useDashboard';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
 import { 
-  Diamond, 
-  CircleDollarSign, 
-  FlaskConical, 
-  Calendar,
-  ExternalLink,
-  Download,
-  Wallet,
-  DiamondPercent,
-  GraduationCap
+  TrendingUp, 
+  Users, 
+  DollarSign, 
+  Target,
+  Activity,
+  Heart,
+  GraduationCap,
+  ArrowRight
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useWallet, useLovelace } from '@meshsdk/react';
 
-const Dashboard = () => {
-  const [walletConnected] = useState(true); // Mock wallet connection state
+const Dashboard: React.FC = () => {
+  const { user } = useAuth();
+  const { data: statsData, isLoading: statsLoading } = useDashboardStats();
+  const { data: activityData, isLoading: activityLoading } = useRecentActivity();
+  const { data: donorsData, isLoading: donorsLoading } = useTopDonors();
+  const { data: projectsData, isLoading: projectsLoading } = useTrendingProjects();
+  const { name, connected, wallet, address } = useWallet();
+  const lovelace = useLovelace();
+  const [txs, setTxs] = React.useState<string[]>([]);
 
-  // Mock user data
-  const userStats = {
-    totalDonated: 2850,
-    projectsSupported: 12,
-    nftsOwned: 15,
-    rank: 'Gold Supporter'
-  };
+  const stats = statsData?.data?.stats;
+  const activities = activityData?.data?.activities || [];
+  const topDonors = donorsData?.data?.donors || [];
+  const trendingProjects = projectsData?.data?.projects || [];
 
-  const nftReceipts = [
-    {
-      id: '1',
-      projectTitle: 'AI-Powered Medical Diagnosis for Rural Areas',
-      donationAmount: 500,
-      date: '2024-06-25',
-      transactionHash: '0x7f9fade1c0d57a7af66ab4ead79fade1c0d57a7af66ab4ead7c2c2eb7b11a91385',
-      nftImage: 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=200&fit=crop',
-      status: 'Minted',
-      category: 'AI'
-    },
-    {
-      id: '2',
-      projectTitle: 'Sustainable Energy Storage Research',
-      donationAmount: 750,
-      date: '2024-06-20',
-      transactionHash: '0x8f9fade1c0d57a7af66ab4ead79fade1c0d57a7af66ab4ead7c2c2eb7b11a91386',
-      nftImage: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=200&h=200&fit=crop',
-      status: 'Minted',
-      category: 'Technology'
-    },
-    {
-      id: '3',
-      projectTitle: 'Quantum Computing Algorithms for Drug Discovery',
-      donationAmount: 1200,
-      date: '2024-06-15',
-      transactionHash: '0x9f9fade1c0d57a7af66ab4ead79fade1c0d57a7af66ab4ead7c2c2eb7b11a91387',
-      nftImage: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=200&h=200&fit=crop',
-      status: 'Minted',
-      category: 'Health'
-    },
-    {
-      id: '4',
-      projectTitle: 'Climate Change Impact on Marine Ecosystems',
-      donationAmount: 400,
-      date: '2024-06-10',
-      transactionHash: '0xaf9fade1c0d57a7af66ab4ead79fade1c0d57a7af66ab4ead7c2c2eb7b11a91388',
-      nftImage: 'https://images.unsplash.com/photo-1605810230434-7631ac76ec81?w=200&h=200&fit=crop',
-      status: 'Pending',
-      category: 'Environment'
+  const isLoading = statsLoading || activityLoading || donorsLoading || projectsLoading;
+
+  const adaBalance = lovelace ? (Number(lovelace) / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 6 }) : '...';
+
+  React.useEffect(() => {
+    if (connected && wallet && wallet.getUtxos) {
+      wallet.getUtxos().then((utxos: any[]) => {
+        // Extract tx hashes from UTXOs
+        const hashes = utxos.map((u) => u.txHash).filter(Boolean);
+        setTxs(Array.from(new Set(hashes)));
+      });
     }
-  ];
+  }, [connected, wallet]);
 
-  const getCategoryColor = (category: string) => {
-    switch (category.toLowerCase()) {
-      case 'ai':
-      case 'technology':
-        return 'bg-violet-500/20 text-violet-400 border-violet-500/30';
-      case 'health':
-        return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
-      case 'environment':
-        return 'bg-green-500/20 text-green-400 border-green-500/30';
-      default:
-        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-    }
-  };
-
-  const shortenHash = (hash: string) => {
-    return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
-  };
-
-  if (!walletConnected) {
+  if (!user) {
     return (
-      <div className="min-h-screen bg-web3-gradient">
-        <Navbar />
-        <div className="pt-24 pb-12 px-4">
-          <div className="container mx-auto">
-            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-              <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-full flex items-center justify-center">
-                <Wallet className="h-12 w-12 text-white" />
-              </div>
-              <h1 className="text-3xl font-bold text-white mb-4">Connect Your Wallet</h1>
-              <p className="text-xl text-gray-300 mb-8 max-w-md">
-                Connect your Cardano wallet to view your donation history and NFT receipts.
-              </p>
-              <Button className="web3-button text-lg px-8 py-4">
-                <Wallet className="h-5 w-5 mr-2" />
-                Connect Wallet
-              </Button>
-            </div>
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">
+          <p className="text-gray-600">Please connect your wallet to view the dashboard.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-web3-gradient">
-      <Navbar />
-      
-      <div className="pt-24 pb-12 px-4">
-        <div className="container mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">
-              Donor Dashboard
-            </h1>
-            <p className="text-xl text-gray-300">
-              Track your contributions and manage your NFT collection
-            </p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+        <p className="text-gray-600">
+          Welcome back, {user.displayName}! Here's what's happening with your {user.role === 'student' ? 'projects' : 'donations'}.
+        </p>
+      </div>
+
+      {/* Wallet Info Panel */}
+      <div className="mb-8">
+        <div className="bg-white rounded-lg shadow p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="text-lg font-semibold text-gray-900 mb-1">Wallet Info</div>
+            {connected ? (
+              <>
+                <div className="text-sm text-gray-700">Wallet: <span className="font-mono">{name}</span></div>
+                <div className="text-sm text-gray-700 break-all">Address: <span className="font-mono">{address || '...'}</span></div>
+                <div className="text-sm text-gray-700">Balance: <span className="font-mono">{adaBalance}</span> ADA</div>
+                {Number(lovelace) < 2_000_000 && (
+                  <div className="text-xs text-red-600 mt-2">Your balance is low. Get more test ADA from the faucet to make transactions.</div>
+                )}
+              </>
+            ) : (
+              <div className="text-sm text-gray-500">Please connect your wallet to see details.</div>
+            )}
           </div>
+        </div>
+      </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-            <Card className="glass-card p-6 text-center">
-              <CircleDollarSign className="h-8 w-8 mx-auto mb-3 text-cyan-400" />
-              <div className="text-3xl font-bold text-white mb-1">{userStats.totalDonated.toLocaleString()}</div>
-              <div className="text-sm text-gray-400">ADA Donated</div>
-            </Card>
-
-            <Card className="glass-card p-6 text-center">
-              <FlaskConical className="h-8 w-8 mx-auto mb-3 text-violet-400" />
-              <div className="text-3xl font-bold text-white mb-1">{userStats.projectsSupported}</div>
-              <div className="text-sm text-gray-400">Projects Supported</div>
-            </Card>
-
-            <Card className="glass-card p-6 text-center">
-              <Diamond className="h-8 w-8 mx-auto mb-3 text-cyan-400" />
-              <div className="text-3xl font-bold text-white mb-1">{userStats.nftsOwned}</div>
-              <div className="text-sm text-gray-400">NFTs Owned</div>
-            </Card>
-
-            <Card className="glass-card p-6 text-center">
-              <GraduationCap className="h-8 w-8 mx-auto mb-3 text-violet-400" />
-              <div className="text-lg font-bold text-white mb-1">{userStats.rank}</div>
-              <div className="text-sm text-gray-400">Supporter Rank</div>
-            </Card>
+      {/* Recent Transactions Panel */}
+      {connected && txs.length > 0 && (
+        <div className="mb-8">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="text-lg font-semibold text-gray-900 mb-2">Recent Transactions</div>
+            <ul className="space-y-2">
+              {txs.slice(0, 5).map((tx) => (
+                <li key={tx} className="text-sm font-mono flex items-center gap-2">
+                  <a
+                    href={`https://preprod.cardanoscan.io/transaction/${tx}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    {tx.slice(0, 12)}...{tx.slice(-6)}
+                  </a>
+                  <span className="text-gray-400">(View on Cardanoscan)</span>
+                </li>
+              ))}
+            </ul>
           </div>
+        </div>
+      )}
 
-          {/* Main Content */}
-          <Tabs defaultValue="nfts" className="space-y-6">
-            <TabsList className="bg-midnight-800/50 border border-white/20">
-              <TabsTrigger value="nfts" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
-                NFT Collection
-              </TabsTrigger>
-              <TabsTrigger value="history" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
-                Donation History
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="nfts" className="space-y-6">
+      {/* Stats Grid */}
+      {!isLoading && stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold text-white">Your NFT Receipts</h2>
-                <Button variant="outline" className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export Collection
-                </Button>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Projects</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalProjects}</p>
+                </div>
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <Target className="h-6 w-6 text-blue-600" />
+                </div>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {nftReceipts.map((nft) => (
-                  <Card key={nft.id} className="glass-card p-6 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
-                    <div className="relative mb-4">
-                      <img 
-                        src={nft.nftImage} 
-                        alt={nft.projectTitle}
-                        className="w-full h-40 object-cover rounded-lg"
-                      />
-                      <div className="absolute top-2 right-2">
-                        <Badge className={getCategoryColor(nft.category)}>
-                          {nft.category}
-                        </Badge>
-                      </div>
-                      <div className="absolute bottom-2 left-2">
-                        <Badge className={nft.status === 'Minted' 
-                          ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                          : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                        }>
-                          {nft.status}
-                        </Badge>
-                      </div>
-                    </div>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Donations</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalDonations}</p>
+                </div>
+                <div className="p-3 bg-green-100 rounded-full">
+                  <Heart className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-                    <h3 className="font-semibold text-white mb-2 line-clamp-2">{nft.projectTitle}</h3>
-                    
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-400">Donation:</span>
-                        <span className="text-cyan-400 font-medium">{nft.donationAmount} ADA</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-400">Date:</span>
-                        <span className="text-white">{nft.date}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-400">TX Hash:</span>
-                        <span className="text-white">{shortenHash(nft.transactionHash)}</span>
-                      </div>
-                    </div>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Amount</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalAmount} ADA</p>
+                </div>
+                <div className="p-3 bg-purple-100 rounded-full">
+                  <DollarSign className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1 border-violet-500 text-violet-400 hover:bg-violet-500/10">
-                        <DiamondPercent className="h-3 w-3 mr-1" />
-                        View NFT
-                      </Button>
-                      <Button variant="outline" size="sm" className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10">
-                        <ExternalLink className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Active Users</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalStudents + stats.totalDonors}</p>
+                </div>
+                <div className="p-3 bg-orange-100 rounded-full">
+                  <Users className="h-6 w-6 text-orange-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Recent Activity */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Activity className="h-5 w-5" />
+              <span>Recent Activity</span>
+            </CardTitle>
+            <CardDescription>
+              Latest updates from the platform
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded"></div>
+                  </div>
                 ))}
               </div>
-            </TabsContent>
-
-            <TabsContent value="history" className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold text-white">Donation History</h2>
-                <Button variant="outline" className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </Button>
+            ) : activities.length > 0 ? (
+              <div className="space-y-4">
+                {activities.slice(0, 5).map((activity) => (
+                  <div key={activity.id} className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <span className="text-sm">{activity.type === 'donation' ? '💰' : 
+                          activity.type === 'project_created' ? '📝' : 
+                          activity.type === 'project_funded' ? '🎉' : '🖼️'}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">
+                        {activity.title}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {activity.description}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(activity.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
+            ) : (
+              <p className="text-gray-500 text-center py-4">No recent activity</p>
+            )}
+          </CardContent>
+        </Card>
 
-              <Card className="glass-card">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-white/10">
-                        <th className="text-left p-4 text-gray-400 font-medium">Project</th>
-                        <th className="text-left p-4 text-gray-400 font-medium">Amount</th>
-                        <th className="text-left p-4 text-gray-400 font-medium">Date</th>
-                        <th className="text-left p-4 text-gray-400 font-medium">Status</th>
-                        <th className="text-left p-4 text-gray-400 font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {nftReceipts.map((donation) => (
-                        <tr key={donation.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                          <td className="p-4">
-                            <div className="flex items-center space-x-3">
-                              <img 
-                                src={donation.nftImage} 
-                                alt={donation.projectTitle}
-                                className="w-10 h-10 rounded-lg object-cover"
-                              />
-                              <div>
-                                <div className="text-white font-medium line-clamp-1">{donation.projectTitle}</div>
-                                <Badge className={`${getCategoryColor(donation.category)} text-xs`}>
-                                  {donation.category}
-                                </Badge>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <span className="text-cyan-400 font-semibold">{donation.donationAmount} ADA</span>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center text-gray-300">
-                              <Calendar className="h-4 w-4 mr-1" />
-                              {donation.date}
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <Badge className={donation.status === 'Minted' 
-                              ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                              : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                            }>
-                              {donation.status}
-                            </Badge>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm" className="border-violet-500 text-violet-400 hover:bg-violet-500/10">
-                                View Receipt
-                              </Button>
-                              <Button variant="outline" size="sm" className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10">
-                                <ExternalLink className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+        {/* Top Donors */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Heart className="h-5 w-5 text-red-600" />
+              <span>Top Donors</span>
+            </CardTitle>
+            <CardDescription>
+              Our most generous supporters
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : topDonors.length > 0 ? (
+              <div className="space-y-4">
+                {topDonors.slice(0, 5).map((donor, index) => (
+                  <div key={donor.id} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium">{index + 1}</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {donor.displayName}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {donor.donationCount} donations
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-gray-900">
+                        {donor.totalDonated} ADA
+                      </p>
+                      <Badge variant="secondary" className="text-xs">
+                        {donor.supporterRank}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-4">No donors yet</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Trending Projects */}
+      <div className="mt-8">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center space-x-2">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                  <span>Trending Projects</span>
+                </CardTitle>
+                <CardDescription>
+                  Most popular projects this week
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/projects">
+                  View All
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-32 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : trendingProjects.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {trendingProjects.slice(0, 3).map((project) => (
+                  <div key={project.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-medium text-gray-900 line-clamp-2">
+                        {project.title}
+                      </h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                      {project.description}
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Progress</span>
+                        <span className="font-medium">{project.progress.toFixed(1)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{ width: `${Math.min(project.progress, 100)}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>{project.currentFunding} ADA</span>
+                        <span>{project.daysLeft} days left</span>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full mt-3" asChild>
+                      <Link to={`/projects/${project.id}`}>
+                        View Project
+                      </Link>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">No trending projects</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
