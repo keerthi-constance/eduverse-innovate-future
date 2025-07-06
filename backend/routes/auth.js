@@ -81,12 +81,16 @@ router.post('/connect-wallet', async (req, res) => {
           role: user.role,
           name: user.name,
           displayName: user.displayName,
+          email: user.email,
+          institution: user.institution,
+          researchField: user.researchField,
           userType: user.userType,
           profileCompleted: user.profileCompleted,
           isVerified: user.isVerified,
           location: user.location,
           studentInfo: user.studentInfo,
-          donorInfo: user.donorInfo
+          donorInfo: user.donorInfo,
+          createdAt: user.createdAt
         }
       }
     };
@@ -107,6 +111,175 @@ router.post('/connect-wallet', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Authentication failed',
+      error: error.message
+    });
+  }
+});
+
+// @desc    Login with wallet address (simplified version without signature)
+// @route   POST /api/auth/wallet-login
+// @access  Public
+router.post('/wallet-login', async (req, res) => {
+  try {
+    const { walletAddress, displayName } = req.body;
+    
+    logger.info(`🔐 [AUTH] Wallet login attempt:`, {
+      walletAddress: walletAddress ? `${walletAddress.slice(0, 10)}...` : 'missing',
+      displayName: displayName,
+      bodyKeys: Object.keys(req.body),
+      fullAddress: walletAddress,
+      addressLength: walletAddress ? walletAddress.length : 0
+    });
+
+    // Validate wallet address
+    if (!validateCardanoAddress(walletAddress)) {
+      logger.warn(`🔐 [AUTH] Invalid wallet address: ${walletAddress}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Cardano wallet address'
+      });
+    }
+
+    // Find or create user
+    logger.info(`🔐 [AUTH] Finding or creating user for wallet: ${walletAddress.slice(0, 10)}...`);
+    let user = await User.findOrCreateByWallet(walletAddress);
+    
+    if (!user) {
+      logger.error(`🔐 [AUTH] Failed to create or find user for wallet: ${walletAddress}`);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create or find user'
+      });
+    }
+
+    // Update display name if provided
+    if (displayName && displayName !== user.displayName) {
+      user.displayName = displayName;
+      await user.save();
+      logger.info(`🔐 [AUTH] Updated display name for user: ${user._id}`);
+    }
+
+    logger.info(`🔐 [AUTH] User found/created:`, {
+      userId: user._id,
+      role: user.role,
+      walletAddress: user.walletAddress.slice(0, 10) + '...'
+    });
+
+    // Generate token
+    const token = generateToken(user._id);
+    logger.info(`🔐 [AUTH] JWT token generated for user: ${user._id}`);
+
+    // Return user data
+    const responseData = {
+      success: true,
+      message: 'Wallet login successful',
+      data: {
+        token,
+        user: {
+          id: user._id,
+          walletAddress: user.walletAddress,
+          role: user.role,
+          name: user.name,
+          displayName: user.displayName,
+          email: user.email,
+          institution: user.institution,
+          researchField: user.researchField,
+          userType: user.userType,
+          profileCompleted: user.profileCompleted,
+          isVerified: user.isVerified,
+          location: user.location,
+          studentInfo: user.studentInfo,
+          donorInfo: user.donorInfo,
+          createdAt: user.createdAt
+        }
+      }
+    };
+
+    logger.info(`🔐 [AUTH] Wallet login successful:`, {
+      userId: user._id,
+      role: user.role,
+      hasToken: !!token,
+      tokenLength: token.length
+    });
+
+    res.status(200).json(responseData);
+
+  } catch (error) {
+    logger.error('🔐 [AUTH] Wallet login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Authentication failed',
+      error: error.message
+    });
+  }
+});
+
+// @desc    Get user by wallet address
+// @route   GET /api/auth/wallet/:walletAddress
+// @access  Public
+router.get('/wallet/:walletAddress', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    
+    logger.info(`🔐 [AUTH] Get user by wallet address:`, {
+      walletAddress: walletAddress ? `${walletAddress.slice(0, 10)}...` : 'missing',
+      fullAddress: walletAddress,
+      addressLength: walletAddress ? walletAddress.length : 0
+    });
+
+    // Validate wallet address
+    if (!validateCardanoAddress(walletAddress)) {
+      logger.warn(`🔐 [AUTH] Invalid wallet address: ${walletAddress}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Cardano wallet address'
+      });
+    }
+
+    const user = await User.findByWalletAddress(walletAddress);
+
+    if (!user) {
+      logger.warn(`🔐 [AUTH] User not found for wallet: ${walletAddress.slice(0, 10)}...`);
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    logger.info(`🔐 [AUTH] User found by wallet address:`, {
+      userId: user._id,
+      role: user.role,
+      walletAddress: user.walletAddress.slice(0, 10) + '...'
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          walletAddress: user.walletAddress,
+          role: user.role,
+          name: user.name,
+          displayName: user.displayName,
+          email: user.email,
+          institution: user.institution,
+          researchField: user.researchField,
+          userType: user.userType,
+          profileCompleted: user.profileCompleted,
+          isVerified: user.isVerified,
+          location: user.location,
+          studentInfo: user.studentInfo,
+          donorInfo: user.donorInfo,
+          createdAt: user.createdAt
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('🔐 [AUTH] Get user by wallet address error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get user',
       error: error.message
     });
   }
@@ -150,6 +323,9 @@ router.get('/me', protect, async (req, res) => {
           role: user.role,
           name: user.name,
           displayName: user.displayName,
+          email: user.email,
+          institution: user.institution,
+          researchField: user.researchField,
           userType: user.userType,
           profileCompleted: user.profileCompleted,
           isVerified: user.isVerified,
@@ -182,10 +358,20 @@ router.put('/profile', protect, async (req, res) => {
   try {
     const {
       name,
+      displayName,
+      email,
+      institution,
+      researchField,
+      role,
       location,
       studentInfo,
       donorInfo
     } = req.body;
+
+    logger.info(`🔐 [AUTH] Update profile request:`, {
+      userId: req.user.id,
+      fields: Object.keys(req.body)
+    });
 
     const user = await User.findById(req.user.id);
 
@@ -196,16 +382,29 @@ router.put('/profile', protect, async (req, res) => {
       });
     }
 
-    // Update basic info
-    if (name) user.name = name;
-    if (location) user.location = { ...user.location, ...location };
+    // Update basic profile info
+    if (name !== undefined) user.name = name;
+    if (displayName !== undefined) user.displayName = displayName;
+    if (email !== undefined) user.email = email;
+    if (institution !== undefined) user.institution = institution;
+    if (researchField !== undefined) user.researchField = researchField;
+    
+    // Update role (with validation)
+    if (role && ['student', 'donor'].includes(role)) {
+      user.role = role;
+    }
+
+    // Update location
+    if (location) {
+      user.location = { ...user.location, ...location };
+    }
 
     // Update role-specific info
-    if (user.role === 'student' && studentInfo) {
+    if (studentInfo) {
       user.studentInfo = { ...user.studentInfo, ...studentInfo };
     }
 
-    if (user.role === 'donor' && donorInfo) {
+    if (donorInfo) {
       user.donorInfo = { ...user.donorInfo, ...donorInfo };
     }
 
@@ -213,6 +412,13 @@ router.put('/profile', protect, async (req, res) => {
     user.profileCompleted = true;
 
     await user.save();
+
+    logger.info(`🔐 [AUTH] Profile updated successfully:`, {
+      userId: user._id,
+      walletAddress: user.walletAddress.slice(0, 10) + '...',
+      role: user.role,
+      profileCompleted: user.profileCompleted
+    });
 
     res.status(200).json({
       success: true,
@@ -224,19 +430,21 @@ router.put('/profile', protect, async (req, res) => {
           role: user.role,
           name: user.name,
           displayName: user.displayName,
+          email: user.email,
+          institution: user.institution,
+          researchField: user.researchField,
           userType: user.userType,
           profileCompleted: user.profileCompleted,
           location: user.location,
           studentInfo: user.studentInfo,
-          donorInfo: user.donorInfo
+          donorInfo: user.donorInfo,
+          createdAt: user.createdAt
         }
       }
     });
 
-    logger.info(`User profile updated: ${user.walletAddress}`);
-
   } catch (error) {
-    logger.error('Update profile error:', error);
+    logger.error('🔐 [AUTH] Update profile error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update profile',
@@ -395,3 +603,5 @@ router.post('/verify-wallet', async (req, res) => {
 });
 
 export default router; 
+ 
+ 

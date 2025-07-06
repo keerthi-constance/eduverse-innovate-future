@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4567/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
 // Response interface
 interface ApiResponse<T = any> {
@@ -27,7 +27,7 @@ class ApiService {
     // Request interceptor
     this.api.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
           console.log(`🌐 [API] Request to ${config.method?.toUpperCase()} ${config.url}:`, {
@@ -67,7 +67,7 @@ class ApiService {
         if (error.response?.status === 401) {
           console.log('🔐 [API] 401 Unauthorized - clearing auth token');
           // Token expired or invalid
-          localStorage.removeItem('authToken');
+          localStorage.removeItem('token');
           window.location.href = '/';
         }
         return Promise.reject(error.response?.data || error);
@@ -82,6 +82,7 @@ class ApiService {
       tokenLength: token.length
     });
     this.api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    localStorage.setItem('token', token);
   }
 
   // Remove auth token
@@ -152,13 +153,22 @@ class ApiService {
 
   // Authentication endpoints
   auth = {
-    connectWallet: (walletAddress: string) =>
-      this.post('/auth/connect-wallet', { walletAddress }),
+    login: (credentials: { email: string; password: string }) =>
+      this.post('/auth/login', credentials),
+    
+    register: (userData: any) =>
+      this.post('/auth/register', userData),
     
     getProfile: () => this.get('/auth/me'),
     
     updateProfile: (profileData: any) =>
       this.put('/auth/profile', profileData),
+    
+    connectWallet: (walletAddress: string) =>
+      this.post('/auth/connect-wallet', { walletAddress }),
+    
+    walletLogin: (walletData: { walletAddress: string; displayName?: string }) =>
+      this.post('/auth/wallet-login', walletData),
     
     upgradeToStudent: (studentData: any) =>
       this.post('/auth/upgrade-to-student', studentData),
@@ -288,4 +298,9 @@ class ApiService {
 }
 
 // Export singleton instance
-export const apiService = new ApiService(); 
+export const apiService = new ApiService();
+
+// Also export as default for convenience
+export default apiService; 
+ 
+ 

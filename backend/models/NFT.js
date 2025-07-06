@@ -192,3 +192,8 @@ nftSchema.statics.findByAssetId = function(assetId) {
 
 export default mongoose.model('NFT', nftSchema); 
  
+ 
+ 
+ 
+ 
+ 

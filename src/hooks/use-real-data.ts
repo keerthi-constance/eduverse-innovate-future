@@ -245,3 +245,9 @@ const getRank = (totalAmount: number) => {
   return 'New Supporter';
 }; 
  
+ 
+ 
+ 
+ 
+ 
+ 

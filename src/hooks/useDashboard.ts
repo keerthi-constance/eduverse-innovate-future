@@ -260,3 +260,5 @@ export const getStatusColor = (status: string): string => {
       return 'text-gray-600 bg-gray-100';
   }
 }; 
+ 
+ 

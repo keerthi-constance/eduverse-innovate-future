@@ -287,3 +287,9 @@ router.delete('/:id', protect, authorize('admin'), async (req, res, next) => {
 
 export default router; 
  
+ 
+ 
+ 
+ 
+ 
+ 

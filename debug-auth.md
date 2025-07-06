@@ -142,3 +142,5 @@ VITE_API_BASE_URL=http://localhost:4567/api
 5. **Report any errors** you see in the logs
 
 The enhanced logging will help us identify exactly where the authentication flow is breaking! 
+ 
+ 

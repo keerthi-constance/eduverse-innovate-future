@@ -24,6 +24,9 @@ router.get('/', async (req, res) => {
     // Map student._id to student.id for all projects
     const projectsWithMappedIds = projects.map(project => {
       const projectObj = project.toObject();
+      // Map project._id to project.id
+      projectObj.id = projectObj._id.toString();
+      delete projectObj._id;
       if (projectObj.student && projectObj.student._id) {
         projectObj.student.id = projectObj.student._id.toString();
         delete projectObj.student._id;
@@ -64,6 +67,9 @@ router.get('/my-projects', protect, async (req, res) => {
     // Map student._id to student.id for all projects
     const projectsWithMappedIds = projects.map(project => {
       const projectObj = project.toObject();
+      // Map project._id to project.id
+      projectObj.id = projectObj._id.toString();
+      delete projectObj._id;
       if (projectObj.student && projectObj.student._id) {
         projectObj.student.id = projectObj.student._id.toString();
         delete projectObj.student._id;
@@ -110,10 +116,22 @@ router.get('/search', async (req, res) => {
       projects = await Project.getActiveProjects();
     }
 
+    // Map project._id to project.id for all projects
+    const projectsWithMappedIds = projects.map(project => {
+      const projectObj = project.toObject();
+      projectObj.id = projectObj._id.toString();
+      delete projectObj._id;
+      if (projectObj.student && projectObj.student._id) {
+        projectObj.student.id = projectObj.student._id.toString();
+        delete projectObj.student._id;
+      }
+      return projectObj;
+    });
+
     res.status(200).json({
       success: true,
       data: {
-        projects
+        projects: projectsWithMappedIds
       }
     });
 
@@ -139,10 +157,22 @@ router.get('/category/:category', async (req, res) => {
     const projects = await Project.getProjectsByCategory(category)
       .sort({ createdAt: -1 });
 
+    // Map project._id to project.id for all projects
+    const projectsWithMappedIds = projects.map(project => {
+      const projectObj = project.toObject();
+      projectObj.id = projectObj._id.toString();
+      delete projectObj._id;
+      if (projectObj.student && projectObj.student._id) {
+        projectObj.student.id = projectObj.student._id.toString();
+        delete projectObj.student._id;
+      }
+      return projectObj;
+    });
+
     res.status(200).json({
       success: true,
       data: {
-        projects
+        projects: projectsWithMappedIds
       }
     });
 
@@ -176,19 +206,24 @@ router.get('/:id', async (req, res) => {
       });
     }
 
+    // Convert to object and map IDs
+    const projectObj = project.toObject();
+    projectObj.id = projectObj._id.toString();
+    delete projectObj._id;
+    
     // Map student._id to student.id if populated
-    if (project.student && typeof project.student === 'object' && project.student._id) {
-      project.student = {
-        ...project.student.toObject(),
-        id: project.student._id.toString()
+    if (projectObj.student && typeof projectObj.student === 'object' && projectObj.student._id) {
+      projectObj.student = {
+        ...projectObj.student,
+        id: projectObj.student._id.toString()
       };
-      delete project.student._id;
+      delete projectObj.student._id;
     }
 
     res.status(200).json({
       success: true,
       data: {
-        project
+        project: projectObj
       }
     });
 
@@ -229,8 +264,17 @@ router.post('/', protect, authorize('student'), validateProject, async (req, res
     // Populate student info for response
     await project.populate('student', 'name walletAddress institution');
 
+    // Convert to object and map IDs
+    const projectObj = project.toObject();
+    projectObj.id = projectObj._id.toString();
+    delete projectObj._id;
+    if (projectObj.student && projectObj.student._id) {
+      projectObj.student.id = projectObj.student._id.toString();
+      delete projectObj.student._id;
+    }
+
     logger.info('📋 [PROJECTS] Project created successfully:', {
-      projectId: project._id,
+      projectId: projectObj.id,
       title: project.title
     });
 
@@ -238,7 +282,7 @@ router.post('/', protect, authorize('student'), validateProject, async (req, res
       success: true,
       message: 'Project created successfully and pending approval',
       data: {
-        project
+        project: projectObj
       }
     });
 
@@ -287,11 +331,20 @@ router.put('/:id', protect, async (req, res) => {
       { new: true, runValidators: true }
     ).populate('student', 'name walletAddress institution');
 
+    // Convert to object and map IDs
+    const projectObj = updatedProject.toObject();
+    projectObj.id = projectObj._id.toString();
+    delete projectObj._id;
+    if (projectObj.student && projectObj.student._id) {
+      projectObj.student.id = projectObj.student._id.toString();
+      delete projectObj.student._id;
+    }
+
     res.status(200).json({
       success: true,
       message: 'Project updated successfully',
       data: {
-        project: updatedProject
+        project: projectObj
       }
     });
 
@@ -351,3 +404,5 @@ router.delete('/:id', protect, async (req, res) => {
 });
 
 export default router; 
+ 
+ 

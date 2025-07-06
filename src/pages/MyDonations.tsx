@@ -1,209 +1,483 @@
-import React from 'react';
-import { useMyDonations } from '../hooks/useDonations';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
+import React, { useState, useEffect } from 'react';
 import { 
-  Heart, 
-  Eye, 
-  Calendar, 
-  DollarSign, 
-  GraduationCap,
-  Building,
-  ExternalLink
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
+  Card, 
+  Typography, 
+  Table, 
+  Tag, 
+  Button, 
+  Space, 
+  Row, 
+  Col, 
+  Statistic, 
+  Avatar, 
+  Progress, 
+  Empty, 
+  Spin,
+  Tooltip,
+  Modal,
+  Image,
+  Divider,
+  Timeline,
+  Badge
+} from 'antd';
+import { 
+  HeartOutlined, 
+  GiftOutlined, 
+  EyeOutlined, 
+  DownloadOutlined,
+  TrophyOutlined,
+  DollarOutlined,
+  CalendarOutlined,
+  UserOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  FileTextOutlined,
+  LinkOutlined,
+  CopyOutlined
+} from '@ant-design/icons';
+import { useAuth } from '../contexts/AuthContext';
+import { apiService } from '../services/apiService';
+import { message } from 'antd';
+
+const { Title, Paragraph, Text } = Typography;
+
+interface Donation {
+  _id: string;
+  amount: number;
+  message?: string;
+  anonymous: boolean;
+  status: 'pending' | 'confirmed' | 'failed';
+  createdAt: string;
+  project: {
+    _id: string;
+    title: string;
+    category: string;
+    student: {
+      name: string;
+      institution: string;
+    };
+  };
+  blockchainTransaction?: {
+    txHash: string;
+    status: string;
+  };
+  receipt?: {
+    receiptNumber: string;
+    nftMetadata?: {
+      image: string;
+      name: string;
+      description: string;
+    };
+  };
+}
 
 const MyDonations: React.FC = () => {
-  const { data: donationsData, isLoading } = useMyDonations();
-  const donations = donationsData?.data?.donations || [];
+  const { user, token } = useAuth();
+  const [donations, setDonations] = useState<Donation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDonation, setSelectedDonation] = useState<Donation | null>(null);
+  const [nftModalVisible, setNftModalVisible] = useState(false);
+
+  useEffect(() => {
+    fetchDonations();
+  }, [token]);
+
+  const fetchDonations = async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await apiService.get('/donations/my-donations', token);
+      if (response.success) {
+        setDonations(response.data.donations);
+      }
+    } catch (error) {
+      console.error('Failed to fetch donations:', error);
+      message.error('Failed to load donation history');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    message.success('Copied to clipboard!');
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmed':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'confirmed': return 'success';
+      case 'pending': return 'processing';
+      case 'failed': return 'error';
+      default: return 'default';
     }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'confirmed': return 'Confirmed';
+      case 'pending': return 'Pending';
+      case 'failed': return 'Failed';
+      default: return 'Unknown';
+    }
+  };
+
+  const formatAmount = (amount: number) => {
+    return (amount / 1_000_000).toFixed(2);
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
-  const getTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const totalDonated = donations.reduce((sum, donation) => sum + donation.amount, 0);
+  const confirmedDonations = donations.filter(d => d.status === 'confirmed').length;
+  const totalProjects = new Set(donations.map(d => d.project._id)).size;
 
-    if (diffInSeconds < 60) {
-      return 'Just now';
-    } else if (diffInSeconds < 3600) {
-      const minutes = Math.floor(diffInSeconds / 60);
-      return `${minutes}m ago`;
-    } else if (diffInSeconds < 86400) {
-      const hours = Math.floor(diffInSeconds / 3600);
-      return `${hours}h ago`;
-    } else if (diffInSeconds < 2592000) {
-      const days = Math.floor(diffInSeconds / 86400);
-      return `${days}d ago`;
-    } else {
-      const months = Math.floor(diffInSeconds / 2592000);
-      return `${months}mo ago`;
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded mb-8"></div>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="h-4 bg-gray-200 rounded mb-4"></div>
-                <div className="h-3 bg-gray-200 rounded mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded mb-4"></div>
-                <div className="h-2 bg-gray-200 rounded mb-2"></div>
-                <div className="h-2 bg-gray-200 rounded"></div>
-              </div>
-            ))}
+  const columns = [
+    {
+      title: 'Project',
+      key: 'project',
+      render: (donation: Donation) => (
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <Avatar 
+            size={40} 
+            icon={<UserOutlined />}
+            style={{ backgroundColor: '#1890ff', marginRight: 12 }}
+          />
+          <div>
+            <Text strong style={{ display: 'block' }}>{donation.project.title}</Text>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              by {donation.project.student.name}
+            </Text>
           </div>
         </div>
+      ),
+    },
+    {
+      title: 'Amount',
+      key: 'amount',
+      render: (donation: Donation) => (
+        <div>
+          <Text strong style={{ fontSize: '16px', color: '#52c41a' }}>
+            {formatAmount(donation.amount)} ADA
+          </Text>
+          {donation.anonymous && (
+            <Tag color="orange" style={{ marginLeft: 8 }}>Anonymous</Tag>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      render: (donation: Donation) => (
+        <Badge 
+          status={getStatusColor(donation.status) as any}
+          text={getStatusText(donation.status)}
+        />
+      ),
+    },
+    {
+      title: 'Date',
+      key: 'date',
+      render: (donation: Donation) => (
+        <div>
+          <Text>{formatDate(donation.createdAt)}</Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (donation: Donation) => (
+        <Space>
+          <Tooltip title="View Details">
+            <Button 
+              type="text" 
+              icon={<EyeOutlined />} 
+              onClick={() => setSelectedDonation(donation)}
+            />
+          </Tooltip>
+          {donation.receipt?.nftMetadata && (
+            <Tooltip title="View NFT Receipt">
+              <Button 
+                type="text" 
+                icon={<GiftOutlined />} 
+                onClick={() => {
+                  setSelectedDonation(donation);
+                  setNftModalVisible(true);
+                }}
+              />
+            </Tooltip>
+          )}
+        </Space>
+      ),
+    },
+  ];
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <Spin size="large" />
+        <Paragraph style={{ marginTop: '16px' }}>Loading your donation history...</Paragraph>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">My Donations</h1>
-            <p className="text-gray-600">
-              Track your contributions to Sri Lankan student research
-            </p>
-          </div>
-          <Button variant="outline" asChild>
-            <Link to="/projects">
-              <Heart className="h-4 w-4 mr-2" />
-              Browse More Projects
-            </Link>
-          </Button>
+    <div style={{ minHeight: '80vh', padding: '32px 0', background: '#f5f5f5' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+        
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <Title level={1} style={{ marginBottom: 16 }}>
+            <HeartOutlined style={{ marginRight: 12, color: '#ff4d4f' }} />
+            My Donation History
+          </Title>
+          <Paragraph style={{ fontSize: '1.1rem', color: '#666' }}>
+            Track all your contributions and NFT receipts
+          </Paragraph>
         </div>
-      </div>
 
-      {/* Donations List */}
-      {donations.length > 0 ? (
-        <div className="space-y-4">
-          {donations.map((donation) => (
-            <Card key={donation.id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                          {donation.project.title}
-                        </h3>
-                        <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
-                          <div className="flex items-center space-x-1">
-                            <GraduationCap className="h-4 w-4" />
-                            <span>{donation.project.student.name}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Building className="h-4 w-4" />
-                            <span>{donation.project.student.institution}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right ml-4">
-                        <div className="text-2xl font-bold text-green-600 mb-1">
-                          {donation.amount} ADA
-                        </div>
-                        <Badge className={getStatusColor(donation.status)}>
-                          {donation.status}
-                        </Badge>
-                      </div>
-                    </div>
+        {/* Statistics */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
+          <Col xs={24} sm={8}>
+            <Card style={{ textAlign: 'center', borderRadius: '12px' }}>
+              <Statistic
+                title="Total Donated"
+                value={formatAmount(totalDonated)}
+                suffix="ADA"
+                valueStyle={{ color: '#52c41a', fontSize: '2rem' }}
+                prefix={<DollarOutlined />}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card style={{ textAlign: 'center', borderRadius: '12px' }}>
+              <Statistic
+                title="Projects Supported"
+                value={totalProjects}
+                suffix="projects"
+                valueStyle={{ color: '#1890ff', fontSize: '2rem' }}
+                prefix={<TrophyOutlined />}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card style={{ textAlign: 'center', borderRadius: '12px' }}>
+              <Statistic
+                title="Confirmed Donations"
+                value={confirmedDonations}
+                suffix={`/ ${donations.length}`}
+                valueStyle={{ color: '#722ed1', fontSize: '2rem' }}
+                prefix={<CheckCircleOutlined />}
+              />
+            </Card>
+          </Col>
+        </Row>
 
-                    {donation.message && (
-                      <div className="bg-gray-50 p-3 rounded-lg mb-3">
-                        <p className="text-sm text-gray-700 italic">
-                          "{donation.message}"
-                        </p>
-                      </div>
-                    )}
+        {/* Donations Table */}
+        <Card 
+          title={
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <GiftOutlined style={{ marginRight: 8 }} />
+              Donation History
+            </div>
+          }
+          style={{ borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+        >
+          {donations.length === 0 ? (
+            <Empty
+              description="No donations yet"
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            >
+              <Button type="primary" href="/projects">
+                Browse Projects
+              </Button>
+            </Empty>
+          ) : (
+            <Table
+              dataSource={donations}
+              columns={columns}
+              rowKey="_id"
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => 
+                  `${range[0]}-${range[1]} of ${total} donations`
+              }}
+              style={{ marginTop: 16 }}
+            />
+          )}
+        </Card>
 
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-4 w-4" />
-                          <span>{formatDate(donation.createdAt)}</span>
-                        </div>
-                        <span>•</span>
-                        <span>{getTimeAgo(donation.createdAt)}</span>
-                        {donation.anonymous && (
-                          <>
-                            <span>•</span>
-                            <span className="text-gray-500">Anonymous donation</span>
-                          </>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {donation.transactionHash && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open(`https://preprod.cardanoscan.io/transaction/${donation.transactionHash}`, '_blank')}
-                          >
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            View Transaction
-                          </Button>
-                        )}
-                        <Button variant="outline" size="sm" asChild>
-                          <Link to={`/projects/${donation.project.id}`}>
-                            <Eye className="h-4 w-4 mr-1" />
-                            View Project
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
+        {/* Donation Details Modal */}
+        <Modal
+          title="Donation Details"
+          open={!!selectedDonation}
+          onCancel={() => setSelectedDonation(null)}
+          footer={null}
+          width={600}
+        >
+          {selectedDonation && (
+            <div>
+              <Card size="small" style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+                  <Avatar 
+                    size={48} 
+                    icon={<UserOutlined />}
+                    style={{ backgroundColor: '#1890ff', marginRight: 16 }}
+                  />
+                  <div>
+                    <Title level={4} style={{ margin: 0 }}>{selectedDonation.project.title}</Title>
+                    <Text type="secondary">by {selectedDonation.project.student.name}</Text>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card className="text-center py-12">
-          <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <Heart className="h-12 w-12 text-gray-400" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No donations yet</h3>
-          <p className="text-gray-600 mb-6">
-            Start supporting Sri Lankan student research by making your first donation.
-          </p>
-          <Button asChild>
-            <Link to="/projects">
-              <Heart className="h-4 w-4 mr-2" />
-              Browse Projects
-            </Link>
-          </Button>
-        </Card>
-      )}
+                
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Statistic
+                      title="Amount"
+                      value={formatAmount(selectedDonation.amount)}
+                      suffix="ADA"
+                      valueStyle={{ color: '#52c41a' }}
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <Statistic
+                      title="Status"
+                      value={getStatusText(selectedDonation.status)}
+                      valueStyle={{ 
+                        color: getStatusColor(selectedDonation.status) === 'success' ? '#52c41a' : 
+                               getStatusColor(selectedDonation.status) === 'processing' ? '#fa8c16' : '#ff4d4f'
+                      }}
+                    />
+                  </Col>
+                </Row>
+
+                {selectedDonation.message && (
+                  <div style={{ marginTop: 16 }}>
+                    <Text strong>Message:</Text>
+                    <Paragraph style={{ margin: '8px 0 0 0', fontStyle: 'italic' }}>
+                      "{selectedDonation.message}"
+                    </Paragraph>
+                  </div>
+                )}
+
+                <Timeline style={{ marginTop: 16 }}>
+                  <Timeline.Item dot={<CalendarOutlined style={{ color: '#1890ff' }} />}>
+                    <Text>Donation made on {formatDate(selectedDonation.createdAt)}</Text>
+                  </Timeline.Item>
+                  {selectedDonation.blockchainTransaction && (
+                    <Timeline.Item dot={<CheckCircleOutlined style={{ color: '#52c41a' }} />}>
+                      <div>
+                        <Text>Transaction confirmed</Text>
+                        <div style={{ marginTop: 4 }}>
+                          <Text code style={{ fontSize: '12px' }}>
+                            {selectedDonation.blockchainTransaction.txHash}
+                          </Text>
+                          <Button 
+                            type="text" 
+                            size="small" 
+                            icon={<CopyOutlined />}
+                            onClick={() => copyToClipboard(selectedDonation.blockchainTransaction!.txHash)}
+                          />
+                        </div>
+                      </div>
+                    </Timeline.Item>
+                  )}
+                  {selectedDonation.receipt && (
+                    <Timeline.Item dot={<GiftOutlined style={{ color: '#722ed1' }} />}>
+                      <Text>NFT receipt generated</Text>
+                    </Timeline.Item>
+                  )}
+                </Timeline>
+              </Card>
+
+              {selectedDonation.blockchainTransaction && (
+                <Card size="small" title="Blockchain Transaction" style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text>Transaction Hash:</Text>
+                    <Button 
+                      type="link" 
+                      icon={<CopyOutlined />}
+                      onClick={() => copyToClipboard(selectedDonation.blockchainTransaction!.txHash)}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                  <Text code style={{ fontSize: '12px', wordBreak: 'break-all' }}>
+                    {selectedDonation.blockchainTransaction.txHash}
+                  </Text>
+                </Card>
+              )}
+            </div>
+          )}
+        </Modal>
+
+        {/* NFT Receipt Modal */}
+        <Modal
+          title="NFT Receipt"
+          open={nftModalVisible}
+          onCancel={() => setNftModalVisible(false)}
+          footer={null}
+          width={500}
+        >
+          {selectedDonation?.receipt?.nftMetadata && (
+            <div style={{ textAlign: 'center' }}>
+              <Image
+                src={selectedDonation.receipt.nftMetadata.image}
+                alt="NFT Receipt"
+                style={{ borderRadius: '12px', marginBottom: 16 }}
+              />
+              <Title level={4}>{selectedDonation.receipt.nftMetadata.name}</Title>
+              <Paragraph>{selectedDonation.receipt.nftMetadata.description}</Paragraph>
+              <Divider />
+              <Space>
+                <Button 
+                  type="primary" 
+                  icon={<DownloadOutlined />}
+                  onClick={() => {
+                    // Download NFT image
+                    const link = document.createElement('a');
+                    link.href = selectedDonation.receipt.nftMetadata.image;
+                    link.download = `donation-receipt-${selectedDonation.receipt.receiptNumber}.png`;
+                    link.click();
+                  }}
+                >
+                  Download NFT
+                </Button>
+                <Button 
+                  icon={<LinkOutlined />}
+                  onClick={() => {
+                    // View on blockchain explorer
+                    const txHash = selectedDonation.blockchainTransaction?.txHash;
+                    if (txHash) {
+                      window.open(`https://preprod.cardanoscan.io/transaction/${txHash}`, '_blank');
+                    }
+                  }}
+                >
+                  View on Explorer
+                </Button>
+              </Space>
+            </div>
+          )}
+        </Modal>
+      </div>
     </div>
   );
 };
 
 export default MyDonations; 
+ 
+ 

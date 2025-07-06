@@ -10,8 +10,8 @@ const userSchema = new mongoose.Schema({
     index: true,
     validate: {
       validator: function(v) {
-        // Comprehensive Cardano address validation
-        const addressRegex = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^addr[0-9a-z]{98,103}$|^addr_test[0-9a-z]{98,103}$/;
+        // Comprehensive Cardano address validation - accept both standard bech32 and our custom hex format
+        const addressRegex = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^addr[0-9a-z]{98,103}$|^addr_test[0-9a-z]{98,103}$|^addr_test_[0-9a-f]{100,120}$|^addr_[0-9a-f]{100,120}$|^addr_test1[a-z0-9]{98,103}$/;
         return addressRegex.test(v);
       },
       message: 'Invalid Cardano wallet address format'
@@ -30,6 +30,27 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true,
     maxlength: 100
+  },
+  
+  // Display name for UI
+  displayName: {
+    type: String,
+    trim: true,
+    maxlength: 100
+  },
+  
+  // Institution/Organization
+  institution: {
+    type: String,
+    trim: true,
+    maxlength: 200
+  },
+  
+  // Research field or area of interest
+  researchField: {
+    type: String,
+    trim: true,
+    maxlength: 200
   },
   
   // Location for Sri Lankan students
@@ -133,9 +154,9 @@ userSchema.index({ 'location.country': 1 });
 userSchema.index({ 'donorInfo.supporterRank': 1 });
 userSchema.index({ createdAt: -1 });
 
-// Virtual for display name
-userSchema.virtual('displayName').get(function() {
-  return this.name || `User ${this.walletAddress.slice(0, 8)}...`;
+// Virtual for display name (fallback)
+userSchema.virtual('displayNameFallback').get(function() {
+  return this.displayName || this.name || `User ${this.walletAddress.slice(0, 8)}...`;
 });
 
 // Virtual for user type
@@ -182,6 +203,27 @@ userSchema.methods.addDonation = function(donationId, amount) {
   return this.save();
 };
 
+// Get public profile (safe for external use)
+userSchema.methods.getPublicProfile = function() {
+  return {
+    id: this._id,
+    walletAddress: this.walletAddress,
+    role: this.role,
+    name: this.name,
+    displayName: this.displayName,
+    email: this.email,
+    institution: this.institution,
+    researchField: this.researchField,
+    userType: this.userType,
+    profileCompleted: this.profileCompleted,
+    isVerified: this.isVerified,
+    location: this.location,
+    studentInfo: this.studentInfo,
+    donorInfo: this.donorInfo,
+    createdAt: this.createdAt
+  };
+};
+
 // Static methods
 userSchema.statics.findOrCreateByWallet = async function(walletAddress) {
   let user = await this.findOne({ walletAddress });
@@ -190,6 +232,7 @@ userSchema.statics.findOrCreateByWallet = async function(walletAddress) {
     user = new this({
       walletAddress,
       role: 'donor', // Default role
+      displayName: `User ${walletAddress.slice(0, 8)}...`,
       location: {
         country: 'Global' // Default for donors
       }
@@ -230,3 +273,4 @@ userSchema.pre('save', function(next) {
 const User = mongoose.model('User', userSchema);
 
 export default User; 
+ 

@@ -2,8 +2,29 @@ import Joi from 'joi';
 
 // Cardano address validation
 export const validateCardanoAddress = (address) => {
-  const addressRegex = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^addr[0-9a-z]{98,103}$|^addr_test[0-9a-z]{98,103}$/;
-  return addressRegex.test(address);
+  if (!address || typeof address !== 'string') {
+    console.log('validateCardanoAddress: Invalid input:', address);
+    return false;
+  }
+  
+  // Accept both standard bech32 addresses and our custom hex-based format
+  const addressRegex = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^addr[0-9a-z]{98,103}$|^addr_test[0-9a-z]{98,103}$|^addr_test_[0-9a-f]{100,120}$|^addr_[0-9a-f]{100,120}$|^addr_test1[a-z0-9]{98,103}$/;
+  const isValid = addressRegex.test(address);
+  
+  console.log('validateCardanoAddress:', {
+    address: address.slice(0, 20) + '...',
+    length: address.length,
+    isValid,
+    matches: {
+      legacy: /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address),
+      mainnet: /^addr[0-9a-z]{98,103}$/.test(address),
+      testnet: /^addr_test[0-9a-z]{98,103}$/.test(address),
+      customTestnet: /^addr_test_[0-9a-f]{100,120}$/.test(address),
+      customMainnet: /^addr_[0-9a-f]{100,120}$/.test(address)
+    }
+  });
+  
+  return isValid;
 };
 
 // Transaction hash validation
@@ -355,3 +376,4 @@ export default {
   createValidationMiddleware,
   createQueryValidationMiddleware
 }; 
+ 

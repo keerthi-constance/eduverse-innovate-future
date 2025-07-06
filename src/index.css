@@ -76,4 +76,23 @@ All colors MUST be HSL.
     @apply glass-card rounded-2xl p-6 hover:shadow-2xl transition-all duration-300 
            hover:transform hover:scale-[1.02] cursor-pointer;
   }
+  
+  /* Custom styles for Ant Design Switch in dark theme */
+  .ant-switch {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  .ant-switch-checked {
+    background-color: #3b82f6 !important;
+  }
+  
+  .ant-switch-handle {
+    background-color: #ffffff !important;
+  }
+  
+  .ant-switch-inner {
+    color: #ffffff !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+  }
 }

@@ -1,211 +1,351 @@
-import React from 'react';
+import { Typography, Button, Card, Row, Col, Statistic, Steps, Avatar, Divider } from 'antd';
 import { Link } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
+import { useAuth } from '../contexts/AuthContext';
 import { 
-  Heart, 
-  GraduationCap, 
-  Target, 
-  Users, 
-  DollarSign,
-  ArrowRight,
-  CheckCircle,
-  Star
-} from 'lucide-react';
+  HeartOutlined, 
+  BookOutlined, 
+  GlobalOutlined, 
+  TrophyOutlined,
+  CheckCircleOutlined,
+  RocketOutlined,
+  TeamOutlined,
+  SafetyOutlined,
+  GiftOutlined,
+  StarOutlined
+} from '@ant-design/icons';
 
-const Home: React.FC = () => {
+const { Title, Paragraph } = Typography;
+
+export default function Home() {
+  const { isAuthenticated } = useAuth();
+
   const features = [
     {
-      icon: <GraduationCap className="h-6 w-6" />,
-      title: "Student Research Funding",
-      description: "Connect talented Sri Lankan students with global donors to fund innovative research projects."
+      icon: <BookOutlined style={{ fontSize: 32, color: '#1890ff' }} />,
+      title: 'Student Projects',
+      description: 'Browse innovative research projects from Sri Lankan students across various fields.'
     },
     {
-      icon: <Heart className="h-6 w-6" />,
-      title: "Transparent Donations",
-      description: "Every donation is recorded on the Cardano blockchain for complete transparency and traceability."
+      icon: <HeartOutlined style={{ fontSize: 32, color: '#f5222d' }} />,
+      title: 'Global Donations',
+      description: 'Support students worldwide using Cardano blockchain for secure, transparent donations.'
     },
     {
-      icon: <Target className="h-6 w-6" />,
-      title: "NFT Receipts",
-      description: "Receive unique NFT receipts for your donations as proof of contribution and impact."
+      icon: <GiftOutlined style={{ fontSize: 32, color: '#52c41a' }} />,
+      title: 'NFT Receipts',
+      description: 'Receive unique NFT receipts for every donation as proof of your contribution.'
     },
     {
-      icon: <Users className="h-6 w-6" />,
-      title: "Global Community",
-      description: "Join a community of donors and researchers working together to advance education and innovation."
+      icon: <SafetyOutlined style={{ fontSize: 32, color: '#722ed1' }} />,
+      title: 'Blockchain Security',
+      description: 'All transactions are secured on the Cardano blockchain with full transparency.'
     }
   ];
 
-  const stats = [
-    { label: "Projects Funded", value: "150+", icon: <Target className="h-5 w-5" /> },
-    { label: "Students Supported", value: "200+", icon: <GraduationCap className="h-5 w-5" /> },
-    { label: "Total Donations", value: "50,000+ ADA", icon: <DollarSign className="h-5 w-5" /> },
-    { label: "Active Donors", value: "1,000+", icon: <Users className="h-5 w-5" /> }
+  const steps = [
+    {
+      title: 'Connect Wallet',
+      description: 'Connect your Cardano wallet (Eternl, Nami, etc.)',
+      icon: <GlobalOutlined />
+    },
+    {
+      title: 'Browse Projects',
+      description: 'Explore student research projects from Sri Lanka',
+      icon: <BookOutlined />
+    },
+    {
+      title: 'Make Donation',
+      description: 'Donate ADA to support promising research',
+      icon: <HeartOutlined />
+    },
+    {
+      title: 'Get NFT Receipt',
+      description: 'Receive a unique NFT as proof of your donation',
+      icon: <GiftOutlined />
+    }
+  ];
+
+  const testimonials = [
+    {
+      name: 'Dr. Sarah Johnson',
+      role: 'Research Donor',
+      content: 'EduFund has made it incredibly easy to support promising research from Sri Lankan students. The transparency and NFT receipts give me confidence in my contributions.',
+      avatar: 'SJ'
+    },
+    {
+      name: 'Kumara Perera',
+      role: 'Student Researcher',
+      content: 'Thanks to EduFund, I was able to secure funding for my renewable energy research. The platform connected me with donors who believe in my vision.',
+      avatar: 'KP'
+    },
+    {
+      name: 'Michael Chen',
+      role: 'Blockchain Enthusiast',
+      content: 'I love how EduFund leverages Cardano blockchain for transparency. The NFT receipts are a brilliant touch that makes every donation memorable.',
+      avatar: 'MC'
+    }
   ];
 
   return (
-    <div className="min-h-screen">
+    <div style={{ minHeight: '100vh' }}>
       {/* Hero Section */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto text-center">
-          <div className="mb-8">
-            <Badge className="mb-4" variant="secondary">
-              Powered by Cardano Blockchain
-            </Badge>
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-              Fund the Future of
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                {" "}Sri Lankan Research
-              </span>
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Connect talented students with global donors through transparent, blockchain-powered funding. 
-              Every donation creates real impact and comes with NFT receipts.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" asChild>
-                <Link to="/projects">
-                  <Heart className="h-5 w-5 mr-2" />
-                  Browse Projects
-                </Link>
+      <div style={{ 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '80px 0 60px',
+        color: 'white',
+        textAlign: 'center'
+      }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+          <Title level={1} style={{ color: 'white', marginBottom: 16, fontSize: '3.5rem' }}>
+            Empowering Sri Lankan Students
+          </Title>
+          <Paragraph style={{ 
+            fontSize: '1.25rem', 
+            color: 'rgba(255,255,255,0.9)', 
+            marginBottom: 32,
+            maxWidth: 600,
+            margin: '0 auto 32px'
+          }}>
+            Connect your Cardano wallet and support innovative research projects from talented Sri Lankan students. 
+            Every donation makes a difference in advancing education and research.
+          </Paragraph>
+          
+          <Row gutter={[16, 16]} justify="center">
+            <Col>
+              <Button type="primary" size="large" style={{ 
+                background: 'rgba(255,255,255,0.2)', 
+                borderColor: 'rgba(255,255,255,0.3)',
+                color: 'white',
+                height: 48,
+                padding: '0 32px'
+              }}>
+                <Link to="/projects" style={{ color: 'white' }}>Browse Projects</Link>
               </Button>
-              <Button variant="outline" size="lg" asChild>
-                <Link to="/create-project">
-                  <GraduationCap className="h-5 w-5 mr-2" />
-                  Create Project
-                </Link>
+            </Col>
+            <Col>
+              <Button size="large" style={{ 
+                background: 'rgba(255,255,255,0.1)', 
+                borderColor: 'rgba(255,255,255,0.3)',
+                color: 'white',
+                height: 48,
+                padding: '0 32px'
+              }}>
+                <Link to="/about" style={{ color: 'white' }}>Learn More</Link>
               </Button>
-            </div>
-          </div>
+            </Col>
+          </Row>
         </div>
-      </section>
+      </div>
 
-      {/* Stats Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="flex justify-center mb-3">
-                  <div className="p-3 bg-blue-100 rounded-full">
-                    <div className="text-blue-600">{stat.icon}</div>
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</div>
-                <div className="text-gray-600">{stat.label}</div>
-              </div>
-            ))}
-          </div>
+      {/* Statistics Section */}
+      <div style={{ padding: '60px 0', background: '#f8f9fa' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+          <Row gutter={[32, 32]} justify="center">
+            <Col xs={24} sm={12} md={6}>
+              <Card style={{ textAlign: 'center', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                <Statistic
+                  title="Projects Funded"
+                  value={156}
+                  suffix="+"
+                  valueStyle={{ color: '#1890ff', fontSize: '2rem' }}
+                  prefix={<TrophyOutlined style={{ color: '#1890ff' }} />}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card style={{ textAlign: 'center', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                <Statistic
+                  title="Total Donations"
+                  value={1250.5}
+                  suffix="ADA"
+                  valueStyle={{ color: '#52c41a', fontSize: '2rem' }}
+                  prefix={<HeartOutlined style={{ color: '#52c41a' }} />}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card style={{ textAlign: 'center', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                <Statistic
+                  title="Active Donors"
+                  value={89}
+                  suffix="+"
+                  valueStyle={{ color: '#722ed1', fontSize: '2rem' }}
+                  prefix={<TeamOutlined style={{ color: '#722ed1' }} />}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card style={{ textAlign: 'center', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                <Statistic
+                  title="Success Rate"
+                  value={78.5}
+                  suffix="%"
+                  valueStyle={{ color: '#fa8c16', fontSize: '2rem' }}
+                  prefix={<CheckCircleOutlined style={{ color: '#fa8c16' }} />}
+                />
+              </Card>
+            </Col>
+          </Row>
         </div>
-      </section>
+      </div>
 
       {/* Features Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Why Choose EduFund?
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              We're revolutionizing how research gets funded through blockchain technology and global collaboration.
-            </p>
+      <div style={{ padding: '80px 0' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 60 }}>
+            <Title level={2} style={{ marginBottom: 16 }}>Why Choose EduFund?</Title>
+            <Paragraph style={{ fontSize: '1.1rem', color: '#666', maxWidth: 600, margin: '0 auto' }}>
+              We're revolutionizing how students get funded and how donors support education through blockchain technology.
+            </Paragraph>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <Row gutter={[32, 32]}>
             {features.map((feature, index) => (
-              <Card key={index} className="text-center hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex justify-center mb-4">
-                    <div className="p-3 bg-blue-100 rounded-full">
-                      <div className="text-blue-600">{feature.icon}</div>
-                    </div>
+              <Col xs={24} sm={12} lg={6} key={index}>
+                <Card 
+                  style={{ 
+                    textAlign: 'center', 
+                    height: '100%',
+                    border: 'none',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    transition: 'transform 0.3s ease'
+                  }}
+                  hoverable
+                >
+                  <div style={{ marginBottom: 16 }}>
+                    {feature.icon}
                   </div>
-                  <CardTitle className="text-lg">{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>{feature.description}</CardDescription>
-                </CardContent>
-              </Card>
+                  <Title level={4} style={{ marginBottom: 12 }}>{feature.title}</Title>
+                  <Paragraph style={{ color: '#666' }}>{feature.description}</Paragraph>
+                </Card>
+              </Col>
             ))}
-          </div>
+          </Row>
         </div>
-      </section>
+      </div>
 
       {/* How It Works Section */}
-      <section className="py-20 bg-gray-50 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              How It Works
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Simple steps to fund research and make a difference
-            </p>
+      <div style={{ padding: '80px 0', background: '#f8f9fa' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 60 }}>
+            <Title level={2} style={{ marginBottom: 16 }}>How It Works</Title>
+            <Paragraph style={{ fontSize: '1.1rem', color: '#666', maxWidth: 600, margin: '0 auto' }}>
+              Getting started with EduFund is simple and secure. Follow these steps to make your first donation.
+            </Paragraph>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-xl">1</span>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Browse Projects</h3>
-              <p className="text-gray-600">
-                Explore research projects from talented Sri Lankan students across various fields.
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-xl">2</span>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Make a Donation</h3>
-              <p className="text-gray-600">
-                Connect your Cardano wallet and donate ADA to support the projects you believe in.
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-xl">3</span>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Get NFT Receipt</h3>
-              <p className="text-gray-600">
-                Receive a unique NFT receipt as proof of your contribution and track the project's progress.
-              </p>
-            </div>
-          </div>
+          <Steps
+            direction="horizontal"
+            current={-1}
+            style={{ maxWidth: 800, margin: '0 auto' }}
+            items={steps.map((step, index) => ({
+              title: step.title,
+              description: step.description,
+              icon: step.icon
+            }))}
+          />
         </div>
-      </section>
+      </div>
 
-      {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Ready to Make a Difference?
-          </h2>
-          <p className="text-xl text-gray-600 mb-8">
-            Join thousands of donors supporting the next generation of Sri Lankan researchers and innovators.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" asChild>
-              <Link to="/projects">
-                <Heart className="h-5 w-5 mr-2" />
-                Start Donating
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </Link>
-            </Button>
-            <Button variant="outline" size="lg" asChild>
-              <Link to="/about">
-                Learn More
-              </Link>
-            </Button>
+      {/* Testimonials Section */}
+      <div style={{ padding: '80px 0' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 60 }}>
+            <Title level={2} style={{ marginBottom: 16 }}>What People Say</Title>
+            <Paragraph style={{ fontSize: '1.1rem', color: '#666', maxWidth: 600, margin: '0 auto' }}>
+              Hear from donors and students who have experienced the power of EduFund.
+            </Paragraph>
           </div>
+          
+          <Row gutter={[32, 32]}>
+            {testimonials.map((testimonial, index) => (
+              <Col xs={24} md={8} key={index}>
+                <Card style={{ 
+                  height: '100%',
+                  border: 'none',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+                    <Avatar size={48} style={{ backgroundColor: '#1890ff', marginRight: 12 }}>
+                      {testimonial.avatar}
+                    </Avatar>
+                    <div>
+                      <div style={{ fontWeight: 'bold' }}>{testimonial.name}</div>
+                      <div style={{ color: '#666', fontSize: '0.9rem' }}>{testimonial.role}</div>
+                    </div>
+                  </div>
+                  <Paragraph style={{ color: '#666', fontStyle: 'italic' }}>
+                    "{testimonial.content}"
+                  </Paragraph>
+                  <div style={{ textAlign: 'right' }}>
+                    <StarOutlined style={{ color: '#faad14' }} />
+                    <StarOutlined style={{ color: '#faad14' }} />
+                    <StarOutlined style={{ color: '#faad14' }} />
+                    <StarOutlined style={{ color: '#faad14' }} />
+                    <StarOutlined style={{ color: '#faad14' }} />
+                  </div>
+                </Card>
+              </Col>
+            ))}
+          </Row>
         </div>
-      </section>
+      </div>
+
+      {/* Call to Action Section */}
+      <div style={{ 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '80px 0',
+        textAlign: 'center',
+        color: 'white'
+      }}>
+        <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 24px' }}>
+          <Title level={2} style={{ color: 'white', marginBottom: 16 }}>
+            Ready to Make a Difference?
+          </Title>
+          <Paragraph style={{ 
+            fontSize: '1.1rem', 
+            color: 'rgba(255,255,255,0.9)', 
+            marginBottom: 32 
+          }}>
+            Join our community of donors and help shape the future of education in Sri Lanka. 
+            Every donation, no matter how small, makes a real impact.
+          </Paragraph>
+          
+          <Row gutter={[16, 16]} justify="center">
+            <Col>
+              <Button type="primary" size="large" style={{ 
+                background: 'rgba(255,255,255,0.2)', 
+                borderColor: 'rgba(255,255,255,0.3)',
+                color: 'white',
+                height: 48,
+                padding: '0 32px'
+              }}>
+                <Link to="/projects" style={{ color: 'white' }}>
+                  <RocketOutlined style={{ marginRight: 8 }} />
+                  Start Donating
+                </Link>
+              </Button>
+            </Col>
+            {/* Only show Create Project for authenticated users */}
+            {isAuthenticated && (
+              <Col>
+                <Button size="large" style={{ 
+                  background: 'rgba(255,255,255,0.1)', 
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: 'white',
+                  height: 48,
+                  padding: '0 32px'
+                }}>
+                  <Link to="/create-project" style={{ color: 'white' }}>
+                    <BookOutlined style={{ marginRight: 8 }} />
+                    Create Project
+                  </Link>
+                </Button>
+              </Col>
+            )}
+          </Row>
+        </div>
+      </div>
     </div>
   );
-};
-
-export default Home;
+}
