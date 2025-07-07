@@ -36,10 +36,11 @@ import {
   RocketOutlined,
   DownloadOutlined
 } from '@ant-design/icons';
-import { useProject } from '../hooks/useProjects';
+import { useProject, projectKeys } from '../hooks/useProjects';
 import { useAuth } from '../contexts/AuthContext';
 import { useLucidWallet } from '../hooks/useLucidWallet';
 import { useNFTService } from '../services/nftService';
+import { useQueryClient } from '@tanstack/react-query';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -61,6 +62,7 @@ const Donate: React.FC = () => {
     sendTransaction 
   } = useLucidWallet();
   const { generateReceiptImage } = useNFTService();
+  const queryClient = useQueryClient();
 
   const [amount, setAmount] = useState<number | null>(null);
   const [donationMessage, setDonationMessage] = useState('');
@@ -68,6 +70,7 @@ const Donate: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
 
   const project = projectData?.data?.project;
 
@@ -152,7 +155,13 @@ const Donate: React.FC = () => {
       
       // Send transaction using Lucid
       const txHash = await sendTransaction(studentAddress, amountLovelace);
+      setTxHash(txHash);
       console.log('Transaction hash:', txHash);
+
+      // Refetch project and my-donations data
+      queryClient.invalidateQueries({ queryKey: projectKeys.detail(projectId) });
+      queryClient.invalidateQueries({ queryKey: projectKeys.myProjects() });
+      queryClient.invalidateQueries({ queryKey: ['my-donations'] });
 
       // Success
       setCurrentStep(3);
@@ -172,25 +181,23 @@ const Donate: React.FC = () => {
           transactionHash: txHash,
           date: new Date().toISOString()
         };
-
-        // Generate receipt image
         const receiptImageData = await generateReceiptImage(nftData);
         setReceiptImage(receiptImageData);
-        
       } catch (error) {
         console.error('Error generating receipt:', error);
-        // Don't fail the donation if receipt generation fails
       }
       
-      // Reset form
+      // Show receipt and tx hash for a few seconds before redirect
       setTimeout(() => {
         setAmount(null);
         setDonationMessage('');
         setAnonymous(false);
         setCurrentStep(0);
         setIsProcessing(false);
+        setReceiptImage(null);
+        setTxHash(null);
         navigate('/projects');
-      }, 3000);
+      }, 6000);
 
     } catch (error) {
       console.error('Donation error:', error);
@@ -586,51 +593,27 @@ const Donate: React.FC = () => {
               )}
 
               {currentStep === 3 && (
-                <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                  <CheckCircleOutlined style={{ fontSize: '4rem', color: '#52c41a', marginBottom: 16 }} />
-                  <Title level={3} style={{ color: '#52c41a' }}>Donation Successful!</Title>
-                  <Paragraph>Thank you for supporting this project!</Paragraph>
-                  
-                  {receiptImage && (
-                    <div style={{ margin: '24px 0' }}>
-                      <Image
-                        src={receiptImage}
-                        alt="Donation Receipt"
-                        style={{ borderRadius: '12px', maxWidth: '300px' }}
-                      />
-                      <div style={{ marginTop: 16 }}>
-                        <Button 
-                          type="default"
-                          icon={<DownloadOutlined />}
-                          onClick={() => {
-                            const link = document.createElement('a');
-                            link.href = receiptImage;
-                            link.download = `donation-receipt-${Date.now()}.png`;
-                            link.click();
-                          }}
-                          style={{ marginRight: 8 }}
-                        >
-                          Download Receipt
-                        </Button>
-                        <Button 
-                          type="primary"
-                          onClick={() => navigate('/my-donations')}
-                        >
-                          View All Donations
-                        </Button>
-                      </div>
+                <Card style={{ margin: '24px 0', textAlign: 'center' }}>
+                  <h2>🎉 Donation Successful!</h2>
+                  {txHash && (
+                    <div style={{ margin: '12px 0' }}>
+                      <b>Transaction Hash:</b> <br />
+                      <a href={`https://preprod.cardanoscan.io/transaction/${txHash}`} target="_blank" rel="noopener noreferrer">{txHash}</a>
                     </div>
                   )}
-                  
-                  <Button 
-                    type="default" 
-                    size="large"
-                    onClick={() => navigate('/projects')}
-                    style={{ marginTop: 16 }}
-                  >
-                    Back to Projects
-                  </Button>
-                </div>
+                  {receiptImage && (
+                    <div style={{ margin: '12px 0' }}>
+                      <b>Your NFT Receipt:</b><br />
+                      <img src={receiptImage} alt="NFT Receipt" style={{ maxWidth: 320, margin: '12px auto' }} />
+                    </div>
+                  )}
+                  <div style={{ marginTop: 16 }}>
+                    <b>Thank you for your support!</b>
+                  </div>
+                  <div style={{ marginTop: 8, color: '#888' }}>
+                    You will be redirected to the projects page shortly...
+                  </div>
+                </Card>
               )}
             </Card>
           </Col>

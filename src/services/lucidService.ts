@@ -398,13 +398,22 @@ class LucidService {
         const enabledExtensions = await this.wallet.api.enable({
           extensions: [{ cip: 30 }]
         });
+        if (!enabledExtensions) {
+          throw new Error('Wallet not enabled or user denied permission');
+        }
         console.log('Enabled extensions:', enabledExtensions);
         
         // Use the enabled extension object directly
         walletApi = enabledExtensions;
       } catch (e) {
         console.log('Failed to enable CIP-30 extension:', e);
+        if (!this.wallet.api) {
+          throw new Error('Wallet API is not available. Please ensure your wallet extension is installed and enabled.');
+        }
         walletApi = this.wallet.api;
+      }
+      if (!walletApi) {
+        throw new Error('Wallet API is not available after enable. Please ensure your wallet extension is installed and enabled.');
       }
       
       console.log('Wallet API methods:', Object.keys(walletApi || {}));
@@ -510,13 +519,22 @@ class LucidService {
         const enabledExtensions = await this.wallet.api.enable({
           extensions: [{ cip: 30 }]
         });
+        if (!enabledExtensions) {
+          throw new Error('Wallet not enabled or user denied permission');
+        }
         console.log('Enabled extensions for balance:', enabledExtensions);
         
         // Use the enabled extension object directly
         walletApi = enabledExtensions;
       } catch (e) {
         console.log('Failed to enable CIP-30 extension for balance:', e);
+        if (!this.wallet.api) {
+          throw new Error('Wallet API is not available. Please ensure your wallet extension is installed and enabled.');
+        }
         walletApi = this.wallet.api;
+      }
+      if (!walletApi) {
+        throw new Error('Wallet API is not available after enable. Please ensure your wallet extension is installed and enabled.');
       }
       
       console.log('Wallet API methods for balance:', Object.keys(walletApi || {}));
@@ -700,7 +718,8 @@ class LucidService {
 
       // Select Eternl wallet from extension
       if (typeof window !== 'undefined' && window.cardano && window.cardano.eternl) {
-        await lucid.selectWallet(window.cardano.eternl);
+        const api = await window.cardano.eternl.enable();
+        await lucid.selectWallet(api);
       } else {
         throw new Error('Eternl wallet extension not found');
       }
@@ -1079,26 +1098,6 @@ if (typeof window !== 'undefined') {
     console.log(`Balance in lovelace: ${balanceLovelace}`);
     return balanceLovelace;
   };
-}
-
-// Add Cardano wallet types to window
-declare global {
-  interface Window {
-    eternl?: any;
-    cardano?: {
-      eternl?: any;
-      nami?: any;
-      flint?: any;
-      yoroi?: any;
-      typhon?: any;
-    };
-    lucidService?: any;
-    debugWallet?: () => void;
-    findCorrectWallet?: () => Promise<boolean>;
-    clearWalletCache?: () => Promise<boolean>;
-    forceRefresh?: () => Promise<boolean>;
-    setTestBalance?: (balanceADA?: number) => bigint;
-  }
 }
 
 export async function sendDonation(toAddress: string, amountLovelace: number | string | bigint) {

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { message } from 'antd';
 import { apiService } from '../services/apiService';
+import { bech32 } from 'bech32';
+import { fromHex } from 'lucid-cardano';
 
 // Types
 interface User {
@@ -39,6 +41,27 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+function ensureBech32Address(address: string): string {
+  if (!address) return address;
+  // If already bech32, return as is
+  if (address.startsWith('addr1') || address.startsWith('addr_test1')) return address;
+  // If hex (starts with addr_test_ or addr_), convert
+  if (address.startsWith('addr_test_') || address.startsWith('addr_')) {
+    try {
+      // Remove prefix and convert
+      const hex = address.replace(/^addr_test_|^addr_/, '');
+      const bytes = fromHex(hex);
+      // Use testnet prefix for test addresses, mainnet otherwise
+      const prefix = address.startsWith('addr_test_') ? 'addr_test' : 'addr';
+      return bech32.encode(prefix, bech32.toWords(bytes));
+    } catch (e) {
+      console.warn('Failed to convert hex address to bech32:', address, e);
+      return address;
+    }
+  }
+  return address;
+}
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -54,16 +77,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('AuthContext: Wallet address length:', walletAddress ? walletAddress.length : 0);
         
         if (walletAddress) {
+          const bech32Address = ensureBech32Address(walletAddress);
           // Try to get user profile from backend using wallet address
           try {
             console.log('AuthContext: Fetching user profile from backend...');
-            console.log('AuthContext: Full wallet address:', walletAddress);
-            console.log('AuthContext: Wallet address length:', walletAddress.length);
+            console.log('AuthContext: Full wallet address:', bech32Address);
+            console.log('AuthContext: Wallet address length:', bech32Address.length);
             
             // Use POST request with wallet address in body to avoid URL truncation
             const response = await apiService.auth.walletLogin({ 
-              walletAddress: walletAddress,
-              displayName: `User ${walletAddress.slice(0, 8)}...`
+              walletAddress: bech32Address,
+              displayName: `User ${bech32Address.slice(0, 8)}...`
             });
             console.log('AuthContext: Backend response:', response);
             
@@ -78,9 +102,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               // Create a default user profile based on wallet address
               console.log('AuthContext: Creating default user profile...');
               const defaultUser: User = {
-                id: walletAddress,
-                displayName: `User ${walletAddress.slice(0, 8)}...`,
-                walletAddress: walletAddress,
+                id: bech32Address,
+                displayName: `User ${bech32Address.slice(0, 8)}...`,
+                walletAddress: bech32Address,
                 role: 'donor', // Default role
                 createdAt: new Date().toISOString()
               };
@@ -91,9 +115,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.log('AuthContext: Backend error:', error?.message || error);
             // If backend is not available, create a local user profile
             const localUser: User = {
-              id: walletAddress,
-              displayName: `User ${walletAddress.slice(0, 8)}...`,
-              walletAddress: walletAddress,
+              id: bech32Address,
+              displayName: `User ${bech32Address.slice(0, 8)}...`,
+              walletAddress: bech32Address,
               role: 'donor', // Default role
               createdAt: new Date().toISOString()
             };
@@ -113,16 +137,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loginWithWallet = async (walletAddress: string, displayName?: string): Promise<boolean> => {
     try {
       setIsLoading(true);
-      console.log('AuthContext: Logging in with wallet:', walletAddress);
+      const bech32Address = ensureBech32Address(walletAddress);
+      console.log('AuthContext: Logging in with wallet:', bech32Address);
         
       // Store wallet address
-      localStorage.setItem('walletAddress', walletAddress);
+      localStorage.setItem('walletAddress', bech32Address);
       
       // Try to get or create user profile
       try {
         const response = await apiService.auth.walletLogin({ 
-          walletAddress, 
-          displayName: displayName || `User ${walletAddress.slice(0, 8)}...` 
+          walletAddress: bech32Address, 
+          displayName: displayName || `User ${bech32Address.slice(0, 8)}...` 
         });
       
       if (response.success) {
@@ -140,9 +165,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Create local user profile if backend is not available
       const localUser: User = {
-        id: walletAddress,
-        displayName: displayName || `User ${walletAddress.slice(0, 8)}...`,
-        walletAddress: walletAddress,
+        id: bech32Address,
+        displayName: displayName || `User ${bech32Address.slice(0, 8)}...`,
+        walletAddress: bech32Address,
         role: 'donor', // Default role
         createdAt: new Date().toISOString()
       };
@@ -160,18 +185,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const setUserFromWallet = (walletAddress: string, balance?: bigint) => {
-    console.log('AuthContext: Setting user from wallet:', walletAddress);
+    const bech32Address = ensureBech32Address(walletAddress);
+    console.log('AuthContext: Setting user from wallet:', bech32Address);
     console.log('AuthContext: Current user:', user);
     
     // Store wallet address
-    localStorage.setItem('walletAddress', walletAddress);
+    localStorage.setItem('walletAddress', bech32Address);
     
     // Create or update user profile
     const existingUser = user;
     const newUser: User = {
-      id: walletAddress,
-      displayName: existingUser?.displayName || `User ${walletAddress.slice(0, 8)}...`,
-      walletAddress: walletAddress,
+      id: bech32Address,
+      displayName: existingUser?.displayName || `User ${bech32Address.slice(0, 8)}...`,
+      walletAddress: bech32Address,
       role: existingUser?.role || 'donor',
       institution: existingUser?.institution,
       researchField: existingUser?.researchField,
