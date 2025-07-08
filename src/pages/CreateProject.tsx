@@ -100,8 +100,16 @@ const CreateProject = () => {
         researchField: values.researchField || '',
         expectedOutcomes: values.expectedOutcomes || '',
         teamMembers: values.teamMembers || '',
-        milestones: values.milestones ? values.milestones.split(',').map(m => m.trim()) : [],
-        tags: values.tags ? values.tags.split(',').map(t => t.trim()) : []
+        milestones: values.milestones
+          ? Array.isArray(values.milestones)
+            ? values.milestones
+            : values.milestones.split(',').map(m => m.trim()).filter(Boolean)
+          : [],
+        tags: values.tags
+          ? Array.isArray(values.tags)
+            ? values.tags
+            : values.tags.split(',').map(t => t.trim()).filter(Boolean)
+          : []
       };
 
       console.log('Submitting project data:', projectData);
@@ -112,11 +120,23 @@ const CreateProject = () => {
       message.success('Project created successfully!');
       navigate('/my-projects');
       } else {
+        // Log backend error details
+        if (result?.details) {
+          console.error('Backend validation errors:', result.details);
+          message.error(result.details.map(d => d.message).join('; '));
+      } else {
         message.error(result?.message || 'Failed to create project. Please try again.');
+        }
       }
     } catch (error) {
+      // If error.response?.data?.details exists, show it
+      if (error?.response?.data?.details) {
+        console.error('Backend validation errors:', error.response.data.details);
+        message.error(error.response.data.details.map(d => d.message).join('; '));
+      } else {
       console.error('Project creation error:', error);
       message.error('Failed to create project. Please try again.');
+      }
     }
   };
 

@@ -1,0 +1,16 @@
+{
+  "policyId": "b6b31b5ece221e599c412313c243973ed03ad42e9e2606ec5d5de030",
+  "privateKey": "ed25519_sk1uc7lpt27s4tscnrxctuajwqvqdhsj2mzdp66r005u6g0k868lmwqhstyfz",
+  "address": "addr_test1vrjm4vtda8g3hx2u8d6tkxkymteuedcp982ndwq3jrupx3cdxf2cj",
+  "policy": {
+    "type": "all",
+    "scripts": [
+      {
+        "type": "before",
+        "slot": 154992789
+      }
+    ]
+  },
+  "createdAt": "2025-07-07T16:59:22.775Z",
+  "network": "preprod"
+}

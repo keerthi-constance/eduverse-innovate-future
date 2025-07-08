@@ -1,73 +1,89 @@
-# Welcome to your Lovable project
+# 🎓 EduFund – Cardano-Powered Research Funding Platform
 
-## Project info
+EduFund is a blockchain-powered platform that connects talented students with global donors, making research funding transparent, accessible, and impactful. Built with Node.js, React, Lucid, and Cardano, EduFund leverages NFTs as donation receipts and supports browser wallets for seamless blockchain interaction.
 
-**URL**: https://lovable.dev/projects/5e1a8c88-9bec-4641-97ee-c6f62fca1a3a
+---
 
-## How can I edit this code?
+## 🚀 Quick Start (Development)
 
-There are several ways of editing your application.
+1. **Clone the repository:**
+   ```sh
+   git clone https://github.com/CoinCeylon/eduverse-innovate-future.git
+   cd eduverse-innovate-future
+   ```
 
-**Use Lovable**
+2. **Install dependencies:**
+   ```sh
+   npm install
+   ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/5e1a8c88-9bec-4641-97ee-c6f62fca1a3a) and start prompting.
+3. **Start the development server:**
+   ```sh
+   npm run dev
+   ```
 
-Changes made via Lovable will be committed automatically to this repo.
+4. **Backend:**
+   - Make sure your backend is running (see `/backend` for setup).
+   - Configure your `.env` files as needed.
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 💳 Demo Wallets (Preprod/Testnet)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+For development and testing, use these Cardano testnet wallets:
 
-Follow these steps:
+- **🎓 Student Wallet:**
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+  `addr_test1qzcpuxeu3fuskvu76vee7hgvjs2q057ddh06uuh3mweresst308dyd6xvy8zy4ah8jwdu8va6zw9y4k42vcztdznj24srgyv0w`
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+- **💸 Donor Wallet:**
 
-# Step 3: Install the necessary dependencies.
-npm i
+  `addr_test1qzx0y7avtk868vwvsqccvw62ns8yf67aye32kxgpc5u3lmy2wxx5d800rqg5ry68kpg3pw3f92h9t69yl0pgk4vzsvxs5nxn97`
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+> **Note:** These are for development only. Do not use for mainnet transactions.
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🛠️ Tech Stack
 
-**Use GitHub Codespaces**
+- **Frontend:** React, TypeScript, Vite, shadcn-ui, Tailwind CSS
+- **Backend:** Node.js, Express, MongoDB, Lucid (Cardano SDK)
+- **Blockchain:** Cardano (Testnet/Preprod), Lucid, Browser Wallets (Nami, Eternl)
+- **NFTs:** Minted as donation receipts
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+## 🌟 Features
 
-This project is built with:
+- **Student Projects:** Students submit research proposals and funding goals.
+- **Donor Portal:** Donors browse, fund, and receive NFT receipts for their support.
+- **NFT Receipts:** Every donation mints a unique NFT as a transparent, verifiable receipt.
+- **Wallet Integration:** Connect with Cardano browser wallets for seamless blockchain interaction.
+- **Real-Time Stats:** Live dashboard for platform activity and funding progress.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+---
 
-## How can I deploy this project?
+## 🧑‍💻 Development Notes
 
-Simply open [Lovable](https://lovable.dev/projects/5e1a8c88-9bec-4641-97ee-c6f62fca1a3a) and click on Share -> Publish.
+- This project is under active development. Use the provided testnet wallets for all blockchain interactions.
+- For Cardano integration, ensure you have a supported browser wallet (Nami, Eternl) installed and set to the Preprod/Testnet network.
+- Backend and frontend run separately; see `/backend` and `/src` for respective codebases.
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
+## 📄 License
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+This project is for educational and development purposes.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+---
+
+## 🙏 Acknowledgements
+
+- [Lucid](https://lucid.spacebudz.io/) – Cardano dApp SDK
+- [Cardano Testnet](https://testnets.cardano.org/)
+- [shadcn/ui](https://ui.shadcn.com/)
+- [Vite](https://vitejs.dev/)
+
+---
+
+> Made with ❤️ for the future of research and education.

@@ -41,9 +41,19 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLucidWallet } from '../hooks/useLucidWallet';
 import { useNFTService } from '../services/nftService';
 import { useQueryClient } from '@tanstack/react-query';
+import { apiService } from '../services/apiService';
+import { Lucid, fromText, toUnit, Blockfrost } from 'lucid-cardano';
+import nftPolicy from '../../nft-policy.json';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
+
+// TEST WALLET ADDRESSES (for development/testing only)
+const TEST_ADDRESSES = {
+  student: 'addr_test1qzcpuxeu3fuskvu76vee7hgvjs2q057ddh06uuh3mweresst308dyd6xvy8zy4ah8jwdu8va6zw9y4k42vcztdznj24srgyv0w',
+  donor: 'addr_test1qzx0y7avtk868vwvsqccvw62ns8yf67aye32kxgpc5u3lmy2wxx5d800rqg5ry68kpg3pw3f92h9t69yl0pgk4vzsvxs5nxn97',
+};
+const isDev = import.meta.env.MODE === 'development' || import.meta.env.MODE === 'test';
 
 const Donate: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -153,10 +163,55 @@ const Donate: React.FC = () => {
 
       console.log('Sending transaction with Lucid...');
       
+      // In confirmDonation, override the address with the student test address in dev/test
+      const senderAddress = isDev ? TEST_ADDRESSES.student : address;
+      
+      // Enable wallet and select the correct API
+      const namiApi = window.cardano?.nami ? await window.cardano.nami.enable() : undefined;
+      const eternlApi = window.cardano?.eternl ? await window.cardano.eternl.enable() : undefined;
+      const api = namiApi || eternlApi;
+      if (!api) throw new Error('No Cardano wallet enabled.');
+      
       // Send transaction using Lucid
-      const txHash = await sendTransaction(studentAddress, amountLovelace);
+      const txHash = await sendTransaction(senderAddress, amountLovelace);
       setTxHash(txHash);
       console.log('Transaction hash:', txHash);
+
+      // Post donation details to backend
+      console.log('user.id:', user.id, typeof user.id);
+      const donationPayload = {
+        donor: user.id,
+        donorAddress: address,
+        studentAddress: studentAddress,
+        project: project._id || project.id,
+        amount: amountLovelace,
+        transactionHash: txHash,
+        status: 'pending',
+        message: donationMessage,
+        anonymous: anonymous
+      };
+      console.log('Posting donation:', donationPayload);
+      try {
+        await apiService.donations.create(donationPayload);
+        message.success('Donation recorded!');
+        // Mint NFT after donation is recorded
+        try {
+          console.log('Calling mintNFT after donation...');
+          const nftTxHash = await mintNFT(address, {
+            amount: amountADA,
+            receiptNumber: 'EDU-' + Date.now(), // Replace with real receipt from backend if available
+            donationDate: new Date().toISOString().split('T')[0],
+            txHash: txHash
+          });
+          message.success('NFT minted and sent to your wallet!');
+          console.log('NFT mint transaction hash:', nftTxHash);
+        } catch (e: any) {
+          console.error('NFT minting failed:', e);
+          message.error('NFT minting failed: ' + (e.message || String(e)));
+        }
+      } catch (err) {
+        message.error('Failed to record donation in backend');
+      }
 
       // Refetch project and my-donations data
       queryClient.invalidateQueries({ queryKey: projectKeys.detail(projectId) });
@@ -622,6 +677,76 @@ const Donate: React.FC = () => {
     </div>
   );
 };
+
+async function mintNFT(address: string, donationData: any) {
+  console.log('MintNFT: Starting...', { address, donationData });
+  try {
+    const lucid = await Lucid.new(
+      new Blockfrost('https://cardano-preprod.blockfrost.io/api/v0', 'preproda1GVl38NyMYaPpoii6rnlaX8nsy7l3m3'),
+      'Preprod'
+    );
+    // Enable wallet and select the correct API
+    const namiApi = window.cardano?.nami ? await window.cardano.nami.enable() : undefined;
+    const eternlApi = window.cardano?.eternl ? await window.cardano.eternl.enable() : undefined;
+    const api = namiApi || eternlApi;
+    if (!api) throw new Error('No Cardano wallet enabled.');
+    lucid.selectWallet(api);
+
+    // Dynamically generate a signature-based policy for the connected wallet
+    const address = await lucid.wallet.address();
+    const addressDetails = lucid.utils.getAddressDetails(address);
+    const keyHash = addressDetails.paymentCredential?.hash;
+    console.log('DEBUG: address', address, 'addressDetails', addressDetails, 'keyHash', keyHash);
+    const currentSlot = await lucid.currentSlot();
+    const futureSlot = currentSlot + 1000000; // 1 million slots in the future
+    const policy = {
+      type: 'all' as const,
+      scripts: [
+        { type: 'sig' as const, keyHash },
+        { type: 'before' as const, slot: futureSlot }
+      ]
+    };
+    console.log('DEBUG: dynamic policy:', policy);
+    console.log('DEBUG: JSON.stringify(policy):', JSON.stringify(policy));
+    const lucidPolicy = lucid.utils.nativeScriptFromJson(JSON.parse(JSON.stringify(policy)));
+    console.log('DEBUG: lucidPolicy (should be NativeScript instance):', lucidPolicy);
+    const policyId = lucid.utils.mintingPolicyToId(lucidPolicy);
+    console.log('DEBUG: policyId used:', policyId);
+    const assetName = 'EDU-' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
+    const assetNameHex = fromText(assetName);
+    const unit = toUnit(policyId, assetNameHex);
+    console.log('DEBUG: unit (asset) being minted:', unit);
+
+    const metaObj = {
+      [policyId]: {
+        [assetNameHex]: {
+          name: assetName,
+          image: 'https://placehold.co/400x400/png?text=DonationNFT',
+          description: `Thank you for your donation of ${donationData.amount} ADA!`,
+          receiptNumber: donationData.receiptNumber,
+          donationDate: donationData.donationDate,
+          donationTx: donationData.txHash
+        }
+      }
+    };
+
+    // Pass the serialized policy JSON to mintAssets
+    const tx = await lucid
+      .newTx()
+      .mintAssets({ [unit]: 1n }, lucidPolicy)
+      .attachMetadata(721, metaObj)
+      .payToAddress(address, { [unit]: 1n })
+      .complete();
+
+    const signedTx = await tx.sign().complete();
+    const txHash = await signedTx.submit();
+    console.log('MintNFT: Success! Transaction hash:', txHash);
+    return txHash;
+  } catch (e) {
+    console.error('MintNFT Error:', e);
+    throw e;
+  }
+}
 
 export default Donate; 
  

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { message } from 'antd';
 import { apiService } from '../services/apiService';
-import { bech32 } from 'bech32';
+import * as bech32 from 'bech32';
 import { fromHex } from 'lucid-cardano';
 
 // Types
@@ -25,6 +25,7 @@ interface AuthContextType {
   updateUser: (userData: Partial<User>) => Promise<boolean>;
   setUserFromWallet: (walletAddress: string, balance?: bigint) => void;
   forceConnectWallet: () => Promise<{ address: string; balance: bigint }>;
+  token: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,7 +42,14 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-function ensureBech32Address(address: string): string {
+// TEST WALLET ADDRESSES (for development/testing only)
+const TEST_ADDRESSES = {
+  student: 'addr_test1qzcpuxeu3fuskvu76vee7hgvjs2q057ddh06uuh3mweresst308dyd6xvy8zy4ah8jwdu8va6zw9y4k42vcztdznj24srgyv0w',
+  donor: 'addr_test1qzx0y7avtk868vwvsqccvw62ns8yf67aye32kxgpc5u3lmy2wxx5d800rqg5ry68kpg3pw3f92h9t69yl0pgk4vzsvxs5nxn97',
+};
+const isDev = import.meta.env.MODE === 'development' || import.meta.env.MODE === 'test';
+
+export function ensureBech32Address(address: string): string {
   if (!address) return address;
   // If already bech32, return as is
   if (address.startsWith('addr1') || address.startsWith('addr_test1')) return address;
@@ -65,73 +73,24 @@ function ensureBech32Address(address: string): string {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
 
-  // Check if user is authenticated on mount (using wallet address from localStorage)
+  // On mount, load the user profile from the backend using session/JWT token
   useEffect(() => {
-    const checkAuth = async () => {
+    const fetchProfile = async () => {
       try {
-        console.log('AuthContext: Checking wallet-based authentication...');
-        const walletAddress = localStorage.getItem('walletAddress');
-        console.log('AuthContext: Wallet address found:', !!walletAddress);
-        console.log('AuthContext: Wallet address from localStorage:', walletAddress);
-        console.log('AuthContext: Wallet address length:', walletAddress ? walletAddress.length : 0);
-        
-        if (walletAddress) {
-          const bech32Address = ensureBech32Address(walletAddress);
-          // Try to get user profile from backend using wallet address
-          try {
-            console.log('AuthContext: Fetching user profile from backend...');
-            console.log('AuthContext: Full wallet address:', bech32Address);
-            console.log('AuthContext: Wallet address length:', bech32Address.length);
-            
-            // Use POST request with wallet address in body to avoid URL truncation
-            const response = await apiService.auth.walletLogin({ 
-              walletAddress: bech32Address,
-              displayName: `User ${bech32Address.slice(0, 8)}...`
-            });
-            console.log('AuthContext: Backend response:', response);
-            
-            if (response.success && response.data) {
-              // Set JWT token for future requests
-              if (response.data.token) {
-                apiService.setAuthToken(response.data.token);
-              }
-              console.log('AuthContext: Setting user data from backend:', response.data);
-              setUser(response.data.user || response.data);
-            } else {
-              // Create a default user profile based on wallet address
-              console.log('AuthContext: Creating default user profile...');
-              const defaultUser: User = {
-                id: bech32Address,
-                displayName: `User ${bech32Address.slice(0, 8)}...`,
-                walletAddress: bech32Address,
-                role: 'donor', // Default role
-                createdAt: new Date().toISOString()
-              };
-              setUser(defaultUser);
-            }
-          } catch (error: any) {
-            console.log('AuthContext: Backend not available, using local user...');
-            console.log('AuthContext: Backend error:', error?.message || error);
-            // If backend is not available, create a local user profile
-            const localUser: User = {
-              id: bech32Address,
-              displayName: `User ${bech32Address.slice(0, 8)}...`,
-              walletAddress: bech32Address,
-              role: 'donor', // Default role
-              createdAt: new Date().toISOString()
-            };
-            setUser(localUser);
-          }
+        // This should use a session/JWT token if you have one
+        const response = await apiService.auth.getProfile();
+        if (response.success && response.data?.user) {
+          setUser(response.data.user);
         } else {
-          console.log('AuthContext: No wallet address found');
+          setUser(null);
         }
-      } catch (error) {
-        console.error('AuthContext: Auth check failed:', error);
+      } catch (e) {
+        setUser(null);
       }
     };
-
-    checkAuth();
+    fetchProfile();
   }, []);
 
   const loginWithWallet = async (walletAddress: string, displayName?: string): Promise<boolean> => {
@@ -154,6 +113,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Set JWT token for future requests
           if (response.data?.token) {
             apiService.setAuthToken(response.data.token);
+            setToken(response.data.token);
+            localStorage.setItem('token', response.data.token);
           }
           setUser(response.data.user || response.data);
           message.success('Wallet connected successfully!');
@@ -185,28 +146,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const setUserFromWallet = (walletAddress: string, balance?: bigint) => {
-    const bech32Address = ensureBech32Address(walletAddress);
-    console.log('AuthContext: Setting user from wallet:', bech32Address);
-    console.log('AuthContext: Current user:', user);
-    
-    // Store wallet address
-    localStorage.setItem('walletAddress', bech32Address);
-    
-    // Create or update user profile
+    // Only update other user fields, not walletAddress
     const existingUser = user;
     const newUser: User = {
-      id: bech32Address,
-      displayName: existingUser?.displayName || `User ${bech32Address.slice(0, 8)}...`,
-      walletAddress: bech32Address,
+      id: existingUser?.id || '',
+      displayName: existingUser?.displayName || '',
+      walletAddress: existingUser?.walletAddress || '', // Do not set from wallet connection
       role: existingUser?.role || 'donor',
       institution: existingUser?.institution,
       researchField: existingUser?.researchField,
       createdAt: existingUser?.createdAt || new Date().toISOString()
     };
-    
-    console.log('AuthContext: Creating new user:', newUser);
     setUser(newUser);
-    console.log('AuthContext: User set from wallet:', newUser);
   };
 
   const forceConnectWallet = async () => {
@@ -256,19 +207,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       setIsLoading(true);
       
+      let updatedUserData = { ...userData };
+      if (isDev && (userData.role === 'student' || userData.role === 'donor')) {
+        updatedUserData.walletAddress = TEST_ADDRESSES[userData.role];
+      }
+      
       // Update local user data
       if (user) {
         console.log('Updating local user data...');
-        const updatedUser = { ...user, ...userData };
+        const updatedUser = { ...user, ...updatedUserData };
         console.log('Updated user object:', updatedUser);
         setUser(updatedUser);
         
         // Try to update on backend if available
         try {
           console.log('Attempting backend update...');
-          console.log('Sending data to backend:', userData);
+          console.log('Sending data to backend:', updatedUserData);
           
-          const response = await apiService.put('/auth/profile', userData);
+          const response = await apiService.put('/auth/profile', updatedUserData);
           console.log('Backend response:', response);
       
       if (response.success) {
@@ -314,7 +270,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     updateUser,
     setUserFromWallet,
-    forceConnectWallet
+    forceConnectWallet,
+    token
   };
 
   return (

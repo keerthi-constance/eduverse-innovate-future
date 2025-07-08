@@ -14,6 +14,13 @@ const donationSchema = new mongoose.Schema({
     trim: true
   },
   
+  // Add studentAddress
+  studentAddress: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  
   // Project Information
   project: {
     type: mongoose.Schema.Types.ObjectId,
@@ -40,6 +47,10 @@ const donationSchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true
+  },
+  
+  receipt: {
+    receiptNumber: { type: String, unique: true, required: true }
   },
   
   blockNumber: {
@@ -154,6 +165,32 @@ donationSchema.statics.getDonorLeaderboard = function(limit = 10) {
       }
     }
   ]);
+};
+
+donationSchema.statics.getStatistics = async function() {
+  const stats = await this.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalDonations: { $sum: 1 },
+        totalAmount: { $sum: '$amount' },
+        averageAmount: { $avg: '$amount' },
+        completedDonations: {
+          $sum: { $cond: [{ $eq: ['$status', 'confirmed'] }, 1, 0] }
+        },
+        pendingDonations: {
+          $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
+        }
+      }
+    }
+  ]);
+  return stats[0] || {
+    totalDonations: 0,
+    totalAmount: 0,
+    averageAmount: 0,
+    completedDonations: 0,
+    pendingDonations: 0
+  };
 };
 
 const Donation = mongoose.model('Donation', donationSchema);

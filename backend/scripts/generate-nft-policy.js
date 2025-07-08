@@ -1,4 +1,4 @@
-import { Lucid, Blockfrost, PolicyId } from "lucid-cardano";
+import { Lucid, Blockfrost } from "lucid-cardano";
 import { logger } from '../utils/logger.js';
 
 const generateNFTPolicy = async () => {
@@ -15,27 +15,24 @@ const generateNFTPolicy = async () => {
     );
 
     // Generate a new wallet for policy creation
-    const { privateKey, address } = lucid.utils.generateKeyPair();
-    
+    const privateKey = lucid.utils.generatePrivateKey();
+    await lucid.selectWalletFromPrivateKey(privateKey);
+    const address = await lucid.wallet.address();
     logger.info(`📝 Generated wallet address: ${address}`);
 
-    // Create NFT policy
-    const { policyId } = await lucid.utils.mintingPolicyToId({
-      type: "Native",
-      script: lucid.utils.nativeScriptFromJson({
+    // Create a time-locked native script (1 year from now)
+    const slot = await lucid.utils.unixTimeToSlot(Date.now() + 1000 * 60 * 60 * 24 * 365);
+    const policy = lucid.utils.nativeScriptFromJson({
         type: "all",
         scripts: [
           {
             type: "before",
-            slot: lucid.utils.unixTimeToSlot(Date.now() + 1000 * 60 * 60 * 24 * 365) // 1 year from now
+          slot
           }
         ]
-      })
     });
-
+    const policyId = lucid.utils.mintingPolicyToId(policy);
     logger.info(`✅ NFT Policy ID generated: ${policyId}`);
-    logger.info(`🔑 Private Key (keep secure): ${privateKey}`);
-    logger.info(`📍 Wallet Address: ${address}`);
 
     // Save to a secure file
     const fs = await import('fs');
@@ -43,10 +40,10 @@ const generateNFTPolicy = async () => {
       policyId,
       privateKey,
       address,
+      policy: policy,
       createdAt: new Date().toISOString(),
       network: 'preprod'
     };
-
     fs.writeFileSync('./nft-policy.json', JSON.stringify(policyData, null, 2));
     logger.info('💾 Policy data saved to nft-policy.json');
 

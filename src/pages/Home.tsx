@@ -1,6 +1,7 @@
 import { Typography, Button, Card, Row, Col, Statistic, Steps, Avatar, Divider } from 'antd';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useDashboardStats } from '../hooks/useDashboard';
 import { 
   HeartOutlined, 
   BookOutlined, 
@@ -18,6 +19,8 @@ const { Title, Paragraph } = Typography;
 
 export default function Home() {
   const { isAuthenticated } = useAuth();
+  const { data, isLoading } = useDashboardStats();
+  const stats = data?.data;
 
   const features = [
     {
@@ -145,7 +148,7 @@ export default function Home() {
               <Card style={{ textAlign: 'center', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
                 <Statistic
                   title="Projects Funded"
-                  value={156}
+                  value={isLoading ? '...' : stats?.fundedProjects ?? 0}
                   suffix="+"
                   valueStyle={{ color: '#1890ff', fontSize: '2rem' }}
                   prefix={<TrophyOutlined style={{ color: '#1890ff' }} />}
@@ -156,7 +159,7 @@ export default function Home() {
               <Card style={{ textAlign: 'center', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
                 <Statistic
                   title="Total Donations"
-                  value={1250.5}
+                  value={isLoading ? '...' : stats?.totalAmount ? (stats.totalAmount / 1_000_000).toFixed(2) : 0}
                   suffix="ADA"
                   valueStyle={{ color: '#52c41a', fontSize: '2rem' }}
                   prefix={<HeartOutlined style={{ color: '#52c41a' }} />}
@@ -167,7 +170,7 @@ export default function Home() {
               <Card style={{ textAlign: 'center', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
                 <Statistic
                   title="Active Donors"
-                  value={89}
+                  value={isLoading ? '...' : stats?.totalDonors ?? 0}
                   suffix="+"
                   valueStyle={{ color: '#722ed1', fontSize: '2rem' }}
                   prefix={<TeamOutlined style={{ color: '#722ed1' }} />}
@@ -178,7 +181,7 @@ export default function Home() {
               <Card style={{ textAlign: 'center', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
                 <Statistic
                   title="Success Rate"
-                  value={78.5}
+                  value={isLoading ? '...' : stats?.successRate ?? 0}
                   suffix="%"
                   valueStyle={{ color: '#fa8c16', fontSize: '2rem' }}
                   prefix={<CheckCircleOutlined style={{ color: '#fa8c16' }} />}

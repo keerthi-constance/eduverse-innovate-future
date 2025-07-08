@@ -8,6 +8,13 @@ if (typeof window !== 'undefined' && !window.Buffer) {
   (window as any).Buffer = Buffer;
 }
 
+// TEST WALLET ADDRESSES (for development/testing only)
+const TEST_ADDRESSES = {
+  student: 'addr_test1qzcpuxeu3fuskvu76vee7hgvjs2q057ddh06uuh3mweresst308dyd6xvy8zy4ah8jwdu8va6zw9y4k42vcztdznj24srgyv0w',
+  donor: 'addr_test1qzx0y7avtk868vwvsqccvw62ns8yf67aye32kxgpc5u3lmy2wxx5d800rqg5ry68kpg3pw3f92h9t69yl0pgk4vzsvxs5nxn97',
+};
+const isDev = typeof import.meta !== 'undefined' && (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'test');
+
 class LucidService {
   private lucid: any = null;
   private wallet: any = null;
@@ -382,7 +389,16 @@ class LucidService {
     }
   }
 
-  async getAddress() {
+  async getAddress(roleOverride?: 'student' | 'donor') {
+    if (isDev && this.wallet && this.wallet.name === 'eternl') {
+      // Use the correct test address for the current role in dev/test
+      // NOTE: window.eduverseUserRole should be set by the app when switching roles in dev/test
+      const win = typeof window !== 'undefined' ? (window as any) : {};
+      const role = roleOverride || (win.eduverseUserRole as 'student' | 'donor') || 'student';
+      const testAddress = TEST_ADDRESSES[role] || TEST_ADDRESSES.student;
+      console.log(`[lucidService] DEV MODE: Forcing ${role} address:`, testAddress);
+      return testAddress;
+    }
     if (!this.isInitialized || !this.wallet) {
       throw new Error('Wallet not connected');
     }
@@ -504,7 +520,23 @@ class LucidService {
     }
   }
 
-  async getBalance() {
+  async getBalance(roleOverride?: 'student' | 'donor') {
+    if (isDev && this.wallet && this.wallet.name === 'eternl') {
+      // Use the correct test address for the current role in dev/test
+      // NOTE: window.eduverseUserRole should be set by the app when switching roles in dev/test
+      const win = typeof window !== 'undefined' ? (window as any) : {};
+      const role = roleOverride || (win.eduverseUserRole as 'student' | 'donor') || 'student';
+      const address = TEST_ADDRESSES[role] || TEST_ADDRESSES.student;
+      console.log(`[lucidService] DEV MODE: Fetching balance for ${role} address:`, address);
+      const { Blockfrost } = await import('lucid-cardano');
+      const lucid = await Lucid.new(
+        new Blockfrost('https://cardano-preprod.blockfrost.io/api/v0', 'preproda1GVl38NyMYaPpoii6rnlaX8nsy7l3m3'),
+        'Preprod'
+      );
+      const utxos = await lucid.utxosAt(address);
+      const balance = utxos.reduce((sum, utxo) => sum + (utxo.assets.lovelace || 0n), 0n);
+      return balance;
+    }
     if (!this.isInitialized || !this.wallet) {
       throw new Error('Wallet not connected');
     }

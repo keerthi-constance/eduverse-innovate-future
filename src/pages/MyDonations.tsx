@@ -33,7 +33,8 @@ import {
   ClockCircleOutlined,
   FileTextOutlined,
   LinkOutlined,
-  CopyOutlined
+  CopyOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
@@ -46,7 +47,7 @@ interface Donation {
   amount: number;
   message?: string;
   anonymous: boolean;
-  status: 'pending' | 'confirmed' | 'failed';
+  status: 'pending' | 'confirmed' | 'failed' | 'nft_minted';
   createdAt: string;
   project: {
     _id: string;
@@ -56,6 +57,8 @@ interface Donation {
       name: string;
       institution: string;
     };
+    fundingGoal?: number;
+    currentFunding?: number;
   };
   blockchainTransaction?: {
     txHash: string;
@@ -69,6 +72,11 @@ interface Donation {
       description: string;
     };
   };
+  nftAssetId?: string;
+  donor?: {
+    name?: string;
+    walletAddress?: string;
+  };
 }
 
 const MyDonations: React.FC = () => {
@@ -79,23 +87,50 @@ const MyDonations: React.FC = () => {
   const [nftModalVisible, setNftModalVisible] = useState(false);
 
   useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    if (user?.role === 'student') {
+      fetchReceivedDonations();
+    } else {
     fetchDonations();
-  }, [token]);
+    }
+  }, [token, user]);
 
   const fetchDonations = async () => {
+    console.log('fetchDonations called, token:', token);
     if (!token) {
       setLoading(false);
       return;
     }
 
     try {
-      const response = await apiService.get('/donations/my-donations', token);
+      const response = await apiService.get('/donations/my-donations');
       if (response.success) {
         setDonations(response.data.donations);
+        console.log('Fetched donations:', response.data.donations);
+        console.log('Donation statuses:', response.data.donations.map(d => d.status));
       }
     } catch (error) {
       console.error('Failed to fetch donations:', error);
       message.error('Failed to load donation history');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchReceivedDonations = async () => {
+    setLoading(true);
+    try {
+      const response = await apiService.get('/donations/received');
+      if (response.success) {
+        setDonations(response.data.donations);
+        console.log('Fetched received donations:', response.data.donations);
+      }
+    } catch (error) {
+      console.error('Failed to fetch received donations:', error);
+      message.error('Failed to load received donations');
     } finally {
       setLoading(false);
     }
@@ -138,11 +173,87 @@ const MyDonations: React.FC = () => {
     });
   };
 
-  const totalDonated = donations.reduce((sum, donation) => sum + donation.amount, 0);
-  const confirmedDonations = donations.filter(d => d.status === 'confirmed').length;
-  const totalProjects = new Set(donations.map(d => d.project._id)).size;
+  // Count both confirmed and nft_minted as confirmed
+  const confirmedStatuses = ['confirmed', 'nft_minted'];
+  const confirmedDonations = donations.filter(d => confirmedStatuses.includes(d.status)).length;
+  const totalDonated = donations
+    .filter(d => confirmedStatuses.includes(d.status))
+    .reduce((sum, donation) => sum + donation.amount, 0);
+  const totalProjects = new Set(
+    donations.filter(d => confirmedStatuses.includes(d.status)).map(d => d.project._id)
+  ).size;
 
-  const columns = [
+  const exportToCSV = () => {
+    const headers = ['Project','Amount (ADA)','Status','Date','Tx Hash'];
+    const rows = donations.map(d => [
+      d.project.title,
+      formatAmount(d.amount),
+      getStatusText(d.status),
+      formatDate(d.createdAt),
+      d.blockchainTransaction?.txHash || ''
+    ]);
+    const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'my-donations.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const columns = user?.role === 'student' ? [
+    {
+      title: 'Donor',
+      key: 'donor',
+      render: (donation: Donation) => (
+        <div>
+          <Text strong>{donation.donor?.name || donation.donor?.walletAddress || 'Unknown'}</Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Project',
+      key: 'project',
+      render: (donation: Donation) => (
+        <div>
+          <Text>{donation.project?.title || 'Unknown Project'}</Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Amount',
+      key: 'amount',
+      render: (donation: Donation) => (
+        <Text strong style={{ color: '#52c41a' }}>{formatAmount(donation.amount)} ADA</Text>
+      ),
+    },
+    {
+      title: 'Date',
+      key: 'date',
+      render: (donation: Donation) => (
+        <Text>{formatDate(donation.createdAt)}</Text>
+      ),
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      render: (donation: Donation) => (
+        <Badge status={getStatusColor(donation.status)} text={getStatusText(donation.status)} />
+      ),
+    },
+    {
+      title: 'Receipt',
+      key: 'receipt',
+      render: (donation: Donation) => (
+        donation.nftAssetId ? (
+          <a href={`https://preprod.cardanoscan.io/token/${donation.nftAssetId}`} target="_blank" rel="noopener noreferrer">NFT</a>
+        ) : (
+          <span style={{ color: '#aaa' }}>Not minted</span>
+        )
+      ),
+    },
+  ] : [
     {
       title: 'Project',
       key: 'project',
@@ -154,9 +265,15 @@ const MyDonations: React.FC = () => {
             style={{ backgroundColor: '#1890ff', marginRight: 12 }}
           />
           <div>
-            <Text strong style={{ display: 'block' }}>{donation.project.title}</Text>
+            <Text strong style={{ display: 'block' }}>
+              {donation.project._id ? (
+                <a href={`/projects/${donation.project._id}`} target="_blank" rel="noopener noreferrer">
+                  {donation.project.title}
+                </a>
+              ) : donation.project.title}
+            </Text>
             <Text type="secondary" style={{ fontSize: '12px' }}>
-              by {donation.project.student.name}
+              by {donation.project.student?.name || 'Student'}
             </Text>
           </div>
         </div>
@@ -196,6 +313,17 @@ const MyDonations: React.FC = () => {
       ),
     },
     {
+      title: '% Funded',
+      key: 'percentFunded',
+      render: (donation: Donation) => {
+        const percent = donation.project && donation.project.fundingGoal ?
+          Math.min(100, ((donation.project.currentFunding || 0) / donation.project.fundingGoal) * 100) : 0;
+        return (
+          <Progress percent={percent} size="small" strokeColor={{ '0%': '#108ee9', '100%': '#87d068' }} />
+        );
+      },
+    },
+    {
       title: 'Actions',
       key: 'actions',
       render: (donation: Donation) => (
@@ -224,6 +352,27 @@ const MyDonations: React.FC = () => {
     },
   ];
 
+  // For donors, add a Get NFT Receipt column
+  const donorColumns = [
+    ...columns,
+    {
+      title: 'Receipt',
+      key: 'receipt',
+      render: (donation: Donation) => (
+        donation.nftAssetId ? (
+          <a href={`https://preprod.cardanoscan.io/token/${donation.nftAssetId}`} target="_blank" rel="noopener noreferrer">
+            Get NFT Receipt
+          </a>
+        ) : (
+          <span style={{ color: '#aaa' }}>Not minted</span>
+        )
+      ),
+    },
+  ];
+
+  // Use donorColumns if user is donor, else columns (student already handled)
+  const tableColumns = user?.role === 'donor' ? donorColumns : columns;
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
@@ -249,41 +398,24 @@ const MyDonations: React.FC = () => {
         </div>
 
         {/* Statistics */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
-          <Col xs={24} sm={8}>
-            <Card style={{ textAlign: 'center', borderRadius: '12px' }}>
-              <Statistic
-                title="Total Donated"
-                value={formatAmount(totalDonated)}
-                suffix="ADA"
-                valueStyle={{ color: '#52c41a', fontSize: '2rem' }}
-                prefix={<DollarOutlined />}
-              />
-            </Card>
+        <Card style={{ marginBottom: 24, borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.08)', background: 'linear-gradient(135deg, #e0e7ff 0%, #f0f5ff 100%)' }}>
+          <Row gutter={[16, 16]} align="middle" justify="space-between">
+            <Col xs={24} sm={12} md={8}>
+              <Statistic title="Total Donated" value={formatAmount(totalDonated)} prefix={<HeartOutlined />} suffix="ADA" valueStyle={{ color: '#52c41a' }} />
+            </Col>
+            <Col xs={24} sm={12} md={8}>
+              <Statistic title="Confirmed Donations" value={confirmedDonations} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#1890ff' }} />
           </Col>
-          <Col xs={24} sm={8}>
-            <Card style={{ textAlign: 'center', borderRadius: '12px' }}>
-              <Statistic
-                title="Projects Supported"
-                value={totalProjects}
-                suffix="projects"
-                valueStyle={{ color: '#1890ff', fontSize: '2rem' }}
-                prefix={<TrophyOutlined />}
-              />
-            </Card>
+            <Col xs={24} sm={12} md={8}>
+              <Statistic title="Projects Supported" value={totalProjects} prefix={<TrophyOutlined />} valueStyle={{ color: '#faad14' }} />
           </Col>
-          <Col xs={24} sm={8}>
-            <Card style={{ textAlign: 'center', borderRadius: '12px' }}>
-              <Statistic
-                title="Confirmed Donations"
-                value={confirmedDonations}
-                suffix={`/ ${donations.length}`}
-                valueStyle={{ color: '#722ed1', fontSize: '2rem' }}
-                prefix={<CheckCircleOutlined />}
-              />
-            </Card>
+            <Col xs={24} sm={24} md={24} style={{ textAlign: 'right', marginTop: 12 }}>
+              <Button icon={<DownloadOutlined />} onClick={exportToCSV} type="primary" ghost size="middle">
+                Export CSV
+              </Button>
           </Col>
         </Row>
+        </Card>
 
         {/* Donations Table */}
         <Card 
@@ -306,17 +438,14 @@ const MyDonations: React.FC = () => {
             </Empty>
           ) : (
             <Table
+              columns={tableColumns}
               dataSource={donations}
-              columns={columns}
               rowKey="_id"
-              pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total, range) => 
-                  `${range[0]}-${range[1]} of ${total} donations`
-              }}
-              style={{ marginTop: 16 }}
+              loading={loading}
+              pagination={{ pageSize: 6, showSizeChanger: false }}
+              scroll={{ x: 'max-content' }}
+              style={{ borderRadius: 16, background: 'white', boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}
+              responsive
             />
           )}
         </Card>

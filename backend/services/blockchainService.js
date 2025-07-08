@@ -2,12 +2,67 @@ import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import { Lucid, Blockfrost, Data, fromText, toUnit } from 'lucid-cardano';
 import { logger } from '../utils/logger.js';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import * as CSL from '@emurgo/cardano-serialization-lib-nodejs';
+
+function truncateToBytes(str, maxBytes) {
+  let bytes = 0;
+  let i = 0;
+  for (; i < str.length; i++) {
+    bytes += Buffer.byteLength(str[i], 'utf8');
+    if (bytes > maxBytes) break;
+  }
+  return str.slice(0, i);
+}
+
+function toHex(bytes) {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function isValidHex(str) {
+  return typeof str === 'string' && /^[0-9a-fA-F]+$/.test(str);
+}
+
+function logAndValidateHex(label, value) {
+  console.log(`${label}:`, value, '| valid hex:', isValidHex(value));
+}
+
+function createCslNativeScript(script, slot) {
+  if (script.type === "all") {
+    const scripts = CSL.NativeScripts.new();
+    script.scripts.forEach((subScript) => {
+      if (subScript.type === "before") {
+        const timelock = CSL.TimelockExpiry.new_timelockexpiry(BigInt(slot));
+        scripts.add(CSL.NativeScript.new_timelock_expiry(timelock));
+      } else {
+        throw new Error("Unsupported sub-script type: " + subScript.type);
+      }
+    });
+    return CSL.NativeScript.new_script_all(scripts);
+  }
+  throw new Error("Unsupported script type: " + script.type);
+}
+
+function isLucidScript(script) {
+  return (
+    script.type === "all" ||
+    script.type === "any" ||
+    script.type === "atLeast" ||
+    script.type === "before" ||
+    script.type === "after"
+  );
+}
 
 class BlockchainService {
   constructor() {
     this.blockfrost = null;
     this.lucid = null;
     this.policyId = null;
+    this.policy = null;
+    this.privateKey = null;
+    this.nativeScript = null;
     this.isInitialized = false;
   }
 
@@ -26,20 +81,35 @@ class BlockchainService {
           process.env.BLOCKFROST_API_URL,
           process.env.BLOCKFROST_PROJECT_ID
         ),
-        process.env.CARDANO_NETWORK && process.env.CARDANO_NETWORK.toLowerCase() === 'testnet' ? 'Preprod' : 'Mainnet'
+        process.env.CARDANO_NETWORK && process.env.CARDANO_NETWORK.toLowerCase() === 'testnet' ? 'Preprod' : 'Mainnet',
+        { csl: CSL }
       );
 
-      this.policyId = process.env.NFT_POLICY_ID;
-      this.isInitialized = true;
+      // Load policy and key
+      const policyData = JSON.parse(fs.readFileSync('./nft-policy.json', 'utf8'));
+      this.policyId = policyData.policyId;
+      this.privateKey = policyData.privateKey;
 
+      // Fetch current slot and update policy
+      const { slot } = await this.lucid.provider.getProtocolParameters();
+      this.policy = {
+        type: "all",
+        scripts: [{ type: "before", slot: Number(slot) + 1000 }],
+      };
+      this.nativeScript = this.policy;
+      console.log('DEBUG policy:', JSON.stringify(this.policy, null, 2));
+      console.log('DEBUG nativeScript:', JSON.stringify(this.nativeScript, null, 2));
+
+      await this.lucid.selectWalletFromPrivateKey(this.privateKey);
+      this.isInitialized = true;
       logger.info('Blockchain service initialized successfully');
     } catch (error) {
-      logger.error('Failed to initialize blockchain service:', error);
+      console.error('BlockchainService error:', error);
+      logger.error('Failed to initialize blockchain service:', error && (error.stack || error.message || JSON.stringify(error)));
       throw error;
     }
   }
 
-  // Get wallet balance
   async getWalletBalance(walletAddress) {
     try {
       if (!this.isInitialized) {
@@ -61,7 +131,6 @@ class BlockchainService {
     }
   }
 
-  // Get transaction details
   async getTransaction(txHash) {
     try {
       if (!this.isInitialized) {
@@ -91,89 +160,26 @@ class BlockchainService {
     }
   }
 
-  // Create NFT metadata
   createNFTMetadata(donation, imageUrl) {
     const assetName = `${process.env.NFT_ASSET_NAME_PREFIX}${donation.receipt.receiptNumber}`;
-    
+    const name = truncateToBytes(`EduFund Donation #${donation.receipt.receiptNumber}`, 64);
+    const description = truncateToBytes(
+      `Thank you for your generous donation of ${donation.formattedAmount} ADA to support education. ${donation.message ? `Message: ${donation.message}` : ''}`,
+      64
+    );
     return {
-      name: `EduFund Donation #${donation.receipt.receiptNumber}`,
-      description: `Thank you for your generous donation of ${donation.formattedAmount} ADA to support education. ${donation.message ? `Message: ${donation.message}` : ''}`,
+      name,
+      description,
       image: imageUrl,
       external_url: `https://edufund.io/donation/${donation._id}`,
-      attributes: [
-        {
-          trait_type: 'Donation Amount',
-          value: `${donation.formattedAmount} ADA`
-        },
-        {
-          trait_type: 'Category',
-          value: donation.category
-        },
-        {
-          trait_type: 'Donation Date',
-          value: donation.createdAt.toISOString().split('T')[0]
-        },
-        {
-          trait_type: 'Receipt Number',
-          value: donation.receipt.receiptNumber
-        },
-        {
-          trait_type: 'Transaction Hash',
-          value: donation.blockchainTransaction.txHash
-        }
-      ]
+      donationAmount: `${donation.formattedAmount} ADA`,
+      category: donation.category,
+      donationDate: donation.createdAt.toISOString().split('T')[0],
+      receiptNumber: donation.receipt.receiptNumber,
+      transactionHash: donation.transactionHash || (donation.blockchainTransaction ? donation.blockchainTransaction.txHash : '')
     };
   }
 
-  // Mint NFT
-  async mintNFT(donation, walletAddress, imageUrl) {
-    try {
-      if (!this.isInitialized) {
-        throw new Error('Blockchain service not initialized');
-      }
-
-      if (!this.policyId) {
-        throw new Error('NFT Policy ID not configured');
-      }
-
-      // Create asset name
-      const assetName = `${process.env.NFT_ASSET_NAME_PREFIX}${donation.receipt.receiptNumber}`;
-      const unit = toUnit(this.policyId, fromText(assetName));
-
-      // Create metadata
-      const metadata = this.createNFTMetadata(donation, imageUrl);
-
-      // Create minting transaction
-      const tx = await this.lucid
-        .newTx()
-        .mintAssets({ [unit]: 1n })
-        .attachMetadata(parseInt(process.env.NFT_METADATA_LABEL) || 721, {
-          [this.policyId]: {
-            [fromText(assetName)]: metadata
-          }
-        })
-        .complete();
-
-      // Sign and submit transaction
-      const signedTx = await tx.sign().complete();
-      const txHash = await signedTx.submit();
-
-      logger.info(`NFT minted successfully. Asset: ${unit}, TX: ${txHash}`);
-
-      return {
-        assetId: unit,
-        assetName: assetName,
-        txHash: txHash,
-        metadata: metadata,
-        policyId: this.policyId
-      };
-    } catch (error) {
-      logger.error('Error minting NFT:', error);
-      throw error;
-    }
-  }
-
-  // Verify transaction
   async verifyTransaction(txHash, expectedAmount, recipientAddress) {
     try {
       if (!this.isInitialized) {
@@ -182,7 +188,6 @@ class BlockchainService {
 
       const tx = await this.getTransaction(txHash);
       
-      // Check if transaction is confirmed
       if (!tx.block) {
         return {
           verified: false,
@@ -191,7 +196,6 @@ class BlockchainService {
         };
       }
 
-      // Check if amount matches
       const outputAmount = parseInt(tx.outputAmount[0]?.quantity || 0);
       if (outputAmount < expectedAmount) {
         return {
@@ -201,7 +205,6 @@ class BlockchainService {
         };
       }
 
-      // Check if recipient address matches
       const utxos = await this.blockfrost.txsUtxos(txHash);
       const recipientUtxo = utxos.outputs.find(utxo => 
         utxo.address === recipientAddress
@@ -228,7 +231,6 @@ class BlockchainService {
     }
   }
 
-  // Get network information
   async getNetworkInfo() {
     try {
       if (!this.isInitialized) {
@@ -255,7 +257,6 @@ class BlockchainService {
     }
   }
 
-  // Get asset information
   async getAssetInfo(assetId) {
     try {
       if (!this.isInitialized) {
@@ -270,10 +271,8 @@ class BlockchainService {
     }
   }
 
-  // Check if address is valid
   isValidAddress(address) {
     try {
-      // Basic Cardano address validation
               const addressRegex = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^addr[0-9a-z]{98,103}$|^addr_test[0-9a-z]{98,103}$|^addr_test_[0-9a-f]{100,120}$|^addr_[0-9a-f]{100,120}$|^addr_test1[a-z0-9]{98,103}$/;
       return addressRegex.test(address);
     } catch (error) {
@@ -281,7 +280,6 @@ class BlockchainService {
     }
   }
 
-  // Generate unique asset name
   generateAssetName(prefix = 'EDUFUND') {
     const timestamp = Date.now().toString();
     const random = Math.random().toString(36).substr(2, 5).toUpperCase();
@@ -289,19 +287,10 @@ class BlockchainService {
   }
 }
 
-// Create singleton instance
 const blockchainService = new BlockchainService();
 
 export { blockchainService };
 
-// Initialize function for server startup
 export const initializeBlockchain = async () => {
   await blockchainService.initialize();
 }; 
- 
- 
- 
- 
- 
- 
- 

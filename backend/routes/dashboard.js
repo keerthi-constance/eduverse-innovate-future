@@ -5,6 +5,7 @@ import NFT from '../models/NFT.js';
 import { blockchainService } from '../services/blockchainService.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { logger } from '../utils/logger.js';
+import Project from '../models/Project.js';
 
 const router = express.Router();
 
@@ -362,6 +363,45 @@ router.get('/performance', protect, authorize('admin'), async (req, res, next) =
       }
     });
 
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @route   GET /dashboard/stats
+// @desc    Get public dashboard statistics for the home page
+// @access  Public
+router.get('/stats', async (req, res, next) => {
+  try {
+    // Total projects
+    const totalProjects = await Project.countDocuments();
+    // Funded projects
+    const fundedProjects = await Project.countDocuments({ status: 'funded' });
+    // Active projects
+    const activeProjects = await Project.countDocuments({ status: 'active' });
+    // Total students
+    const totalStudents = await Project.distinct('student').then(arr => arr.length);
+    // Total donors
+    const totalDonors = await Donation.distinct('donor').then(arr => arr.length);
+    // Total donations and amount
+    const donationStats = await Donation.getStatistics();
+    // Success rate (funded projects / total projects)
+    const successRate = totalProjects > 0 ? (fundedProjects / totalProjects) * 100 : 0;
+
+    res.json({
+      success: true,
+      data: {
+        totalProjects,
+        fundedProjects,
+        activeProjects,
+        totalStudents,
+        totalDonors,
+        totalDonations: donationStats.totalDonations,
+        totalAmount: donationStats.totalAmount,
+        averageDonation: donationStats.averageAmount,
+        successRate: Number(successRate.toFixed(1))
+      }
+    });
   } catch (error) {
     next(error);
   }

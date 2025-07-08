@@ -152,44 +152,6 @@ router.post('/verify-transaction', async (req, res, next) => {
   }
 });
 
-// @route   POST /api/blockchain/mint-nft
-// @desc    Mint an NFT (admin only)
-// @access  Private/Admin
-router.post('/mint-nft', protect, authorize('admin'), async (req, res, next) => {
-  try {
-    const { donationId, walletAddress, imageUrl } = req.body;
-
-    if (!donationId || !walletAddress || !imageUrl) {
-      return res.status(400).json({
-        success: false,
-        error: 'Donation ID, wallet address, and image URL are required'
-      });
-    }
-
-    // Import Donation model here to avoid circular dependency
-    const Donation = (await import('../models/Donation.js')).default;
-    const donation = await Donation.findById(donationId);
-
-    if (!donation) {
-      return res.status(404).json({
-        success: false,
-        error: 'Donation not found'
-      });
-    }
-
-    const nftResult = await blockchainService.mintNFT(donation, walletAddress, imageUrl);
-
-    res.json({
-      success: true,
-      data: nftResult,
-      message: 'NFT minted successfully'
-    });
-
-  } catch (error) {
-    next(error);
-  }
-});
-
 // @route   GET /api/blockchain/status
 // @desc    Get blockchain service status
 // @access  Private/Admin

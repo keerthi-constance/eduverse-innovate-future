@@ -12,6 +12,7 @@ import Project from '../models/Project.js';
 import { createObjectCsvWriter } from 'csv-writer';
 import path from 'path';
 import fs from 'fs';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -53,80 +54,93 @@ const validateDonation = [
 // @route   POST /api/donations
 // @desc    Create a new donation
 // @access  Public
-router.post('/', validateDonation, async (req, res, next) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
+router.post('/', protect, async (req, res, next) => {
+  if (req.user && req.user.role === 'student') {
+    return res.status(403).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+      message: 'Students are not allowed to donate.'
       });
     }
-
+  try {
     const {
+      donor,
+      donorAddress,
+      studentAddress,
       amount,
-      walletAddress,
-      message = '',
-      category = 'general',
-      isAnonymous = false,
-      email,
-      name
+      transactionHash,
+      project,
+      status = 'pending',
+      message,
+      anonymous
     } = req.body;
 
-    // Find or create user
-    let user = await User.findByWalletAddress(walletAddress);
-    
-    if (!user) {
-      // Create new user if doesn't exist
-      user = new User({
-        walletAddress: walletAddress.toLowerCase(),
-        email: email || `${walletAddress.slice(0, 8)}@anonymous.com`,
-        name: name || `Donor ${walletAddress.slice(0, 6)}...`,
-        isVerified: false
-      });
-      await user.save();
+    if (!donor || !donorAddress || !studentAddress || !amount || !transactionHash || !project) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    // Create donation record
-    const donation = new Donation({
-      donor: user._id,
-      amount: parseInt(amount),
-      currency: 'ADA',
+    // Generate unique receipt number
+    const receiptNumber = `EDU-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    // Force ObjectId for donor and project
+    const donation = await Donation.create({
+      donor: new mongoose.Types.ObjectId(donor),
+      donorAddress,
+      studentAddress,
+      amount,
+      transactionHash,
+      project: new mongoose.Types.ObjectId(project),
+      status,
       message,
-      category,
-      isAnonymous,
-      status: 'pending',
-      blockchainTransaction: {
-        txHash: '', // Will be updated when transaction is confirmed
-        confirmations: 0
-      },
-      metadata: {
-        userAgent: req.get('User-Agent'),
-        ipAddress: req.ip,
-        referrer: req.get('Referrer')
+      anonymous,
+      receipt: { receiptNumber }
+    });
+
+    // Fetch project for metadata
+    const projectDoc = await Project.findById(project);
+    let nftResult = null;
+    if (projectDoc) {
+      try {
+        nftResult = await blockchainService.mintNFT(
+          {
+            ...donation.toObject(),
+            projectTitle: projectDoc.title,
+            formattedAmount: (amount / 1_000_000).toFixed(2),
+            createdAt: donation.createdAt,
+            message: donation.message,
+            transactionHash: donation.transactionHash
+          },
+          donorAddress,
+          'https://placehold.co/400x400/png?text=EduFund+NFT' // test image URL
+        );
+        // Save NFT info to donation
+        donation.nftAssetId = nftResult.assetId;
+        donation.nftPolicyId = nftResult.policyId;
+        donation.nftMetadata = nftResult.metadata;
+        donation.status = 'nft_minted';
+        await donation.save();
+      } catch (nftError) {
+        logger.error('NFT minting error type:', typeof nftError, 'keys:', Object.keys(nftError || {}));
+        logger.error('NFT minting failed:', nftError && (nftError.stack || nftError.message || JSON.stringify(nftError)));
+        // If NFT minting fails, mark as confirmed
+        donation.status = 'confirmed';
+        await donation.save();
       }
-    });
-
+    } else {
+      // If no project found, still mark as confirmed
+      donation.status = 'confirmed';
     await donation.save();
+    }
 
-    // Update user statistics
-    user.donationCount += 1;
-    user.lastDonationDate = new Date();
-    await user.save();
+    // After donation is created, update project funding
+    if (projectDoc) {
+      projectDoc.currentFunding += amount;
+      if (!projectDoc.backersCount) projectDoc.backersCount = 0;
+      projectDoc.backersCount += 1;
+      await projectDoc.save();
+    }
 
-    logger.info(`New donation created: ${donation._id} by ${walletAddress}`);
-
-    res.status(201).json({
-      success: true,
-      data: {
-        donation: donation.getPublicInfo(),
-        user: user.getPublicProfile()
-      },
-      message: 'Donation created successfully. Please complete the blockchain transaction.'
-    });
-
+    // Always respond with donation (and NFT info if available)
+    res.status(201).json({ success: true, data: { donation, nft: nftResult } });
   } catch (error) {
     next(error);
   }
@@ -256,7 +270,8 @@ router.post('/:id/confirm', [
       });
 
     } catch (nftError) {
-      logger.error('NFT minting failed:', nftError);
+      logger.error('NFT minting error type:', typeof nftError, 'keys:', Object.keys(nftError || {}));
+      logger.error('NFT minting failed:', nftError && (nftError.stack || nftError.message || JSON.stringify(nftError)));
       
       // Still return success for donation, but note NFT failure
       res.json({
@@ -272,6 +287,37 @@ router.post('/:id/confirm', [
 
   } catch (error) {
     next(error);
+  }
+});
+
+// @desc    Get my donations
+// @route   GET /api/donations/my-donations
+// @access  Private
+router.get('/my-donations', protect, async (req, res) => {
+  try {
+    logger.info('💰 [DONATIONS] Get my donations request:', {
+      userId: req.user.id
+    });
+
+    const donations = await Donation.find({ donor: req.user.id })
+      .populate('project', 'title _id student attachments currentFunding fundingGoal')
+      .populate('donor', 'name walletAddress')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        donations
+      }
+    });
+
+  } catch (error) {
+    logger.error('💰 [DONATIONS] Get my donations error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get donations',
+      error: error.message
+    });
   }
 });
 
@@ -323,6 +369,42 @@ router.get('/', async (req, res, next) => {
 
   } catch (error) {
     next(error);
+  }
+});
+
+// @route   GET /api/donations/received
+// @desc    Get all donations received for a student's projects
+// @access  Private
+router.get('/received', protect, async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only students can view received donations.'
+      });
+    }
+    // Find all projects owned by this student
+    const projects = await Project.find({ student: req.user.id }).select('_id title');
+    const projectIds = projects.map(p => p._id);
+    // Find all donations for these projects
+    const donations = await Donation.find({ project: { $in: projectIds } })
+      .populate('donor', 'name walletAddress')
+      .populate('project', 'title')
+      .sort({ createdAt: -1 });
+    res.status(200).json({
+      success: true,
+      data: {
+        donations,
+        projects
+      }
+    });
+  } catch (error) {
+    logger.error('💰 [DONATIONS] Get received donations error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get received donations',
+      error: error.message
+    });
   }
 });
 
@@ -552,37 +634,6 @@ router.post('/', protect, authorize('donor'), async (req, res) => {
   }
 });
 
-// @desc    Get my donations
-// @route   GET /api/donations/my-donations
-// @access  Private
-router.get('/my-donations', protect, async (req, res) => {
-  try {
-    logger.info('💰 [DONATIONS] Get my donations request:', {
-      userId: req.user.id
-    });
-
-    const donations = await Donation.find({ donor: req.user.id })
-      .populate('project', 'title student attachments')
-      .populate('donor', 'name walletAddress')
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      data: {
-        donations
-      }
-    });
-
-  } catch (error) {
-    logger.error('💰 [DONATIONS] Get my donations error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get donations',
-      error: error.message
-    });
-  }
-});
-
 // @desc    Get donations by project
 // @route   GET /api/donations/project/:projectId
 // @access  Public
@@ -737,7 +788,7 @@ router.put('/:id/confirm', protect, async (req, res) => {
       blockNumber
     });
 
-    const donation = await Donation.findById(id);
+    let donation = await Donation.findById(id).populate('project');
     if (!donation) {
       return res.status(404).json({
         success: false,
@@ -754,11 +805,41 @@ router.put('/:id/confirm', protect, async (req, res) => {
     }
 
     await donation.confirm(blockNumber);
+    // Fetch updated donation
+    donation = await Donation.findById(id).populate('project');
+
+    // Try to mint NFT after confirmation
+    let nftResult = null;
+    try {
+      nftResult = await blockchainService.mintNFT(
+        {
+          ...donation.toObject(),
+          projectTitle: donation.project?.title,
+          formattedAmount: (donation.amount / 1_000_000).toFixed(2),
+          createdAt: donation.createdAt,
+          message: donation.message,
+          transactionHash: donation.transactionHash
+        },
+        donation.donorAddress,
+        'https://placehold.co/400x400/png?text=EduFund+NFT'
+      );
+      donation.nftAssetId = nftResult.assetId;
+      donation.nftPolicyId = nftResult.policyId;
+      donation.nftMetadata = nftResult.metadata;
+      donation.status = 'nft_minted';
+      await donation.save();
+      logger.info(`NFT minted after confirmation for donation ${donation._id}`);
+    } catch (nftError) {
+      logger.error('NFT minting error type:', typeof nftError, 'keys:', Object.keys(nftError || {}));
+      logger.error('NFT minting failed after confirmation:', nftError && (nftError.stack || nftError.message || JSON.stringify(nftError)));
+      // Leave status as 'confirmed'
+    }
 
     res.status(200).json({
       success: true,
       data: {
-        donation
+        donation,
+        nft: nftResult
       }
     });
 
