@@ -3,6 +3,13 @@
 EduFund is a blockchain-powered platform that connects talented students with global donors, making research funding transparent, accessible, and impactful. Built with Node.js, React, Lucid, and Cardano, EduFund leverages NFTs as donation receipts and supports browser wallets for seamless blockchain interaction.
 
 ---
+# 📦 Demo Project
+
+You can preview and explore a functional demo of EduFund using the following download:
+
+🔗 Download Demo (Google Drive)
+👉 https://drive.google.com/file/d/18uPm3AdgfaJYzWN5F8I5SC9DLAe9xBh3/view?usp=drivesdk
+
 
 ## 🚀 Quick Start (Development)
 
