@@ -11,7 +11,8 @@ const userSchema = new mongoose.Schema({
     validate: {
       validator: function(v) {
         // Comprehensive Cardano address validation - accept both standard bech32 and our custom hex format
-        const addressRegex = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^addr[0-9a-z]{98,103}$|^addr_test[0-9a-z]{98,103}$|^addr_test_[0-9a-f]{100,120}$|^addr_[0-9a-f]{100,120}$|^addr_test1[a-z0-9]{98,103}$/;
+        // Updated patterns to handle various Cardano address formats including longer hex addresses
+        const addressRegex = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^addr[0-9a-z]{98,103}$|^addr_test[0-9a-z]{98,103}$|^addr_test_[0-9a-f]{100,200}$|^addr_[0-9a-f]{100,200}$|^addr_test1[a-z0-9]{98,103}$|^addr_test_[0-9a-f]{50,200}$/;
         return addressRegex.test(v);
       },
       message: 'Invalid Cardano wallet address format'

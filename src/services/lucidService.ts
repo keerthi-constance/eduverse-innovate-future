@@ -8,11 +8,6 @@ if (typeof window !== 'undefined' && !window.Buffer) {
   (window as any).Buffer = Buffer;
 }
 
-// TEST WALLET ADDRESSES (for development/testing only)
-const TEST_ADDRESSES = {
-  student: 'addr_test1qzcpuxeu3fuskvu76vee7hgvjs2q057ddh06uuh3mweresst308dyd6xvy8zy4ah8jwdu8va6zw9y4k42vcztdznj24srgyv0w',
-  donor: 'addr_test1qzx0y7avtk868vwvsqccvw62ns8yf67aye32kxgpc5u3lmy2wxx5d800rqg5ry68kpg3pw3f92h9t69yl0pgk4vzsvxs5nxn97',
-};
 const isDev = typeof import.meta !== 'undefined' && (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'test');
 
 class LucidService {
@@ -259,30 +254,26 @@ class LucidService {
     try {
       console.log('Converting hex address to bech32:', hexAddress);
       
-      // Remove the first character if it's a network identifier
-      const cleanHex = hexAddress.startsWith('0') ? hexAddress.slice(1) : hexAddress;
-      console.log('Clean hex:', cleanHex);
-      
-      // For now, let's use a simpler approach to avoid bech32 length limits
-      // We'll create a readable address format without full bech32 encoding
       // Check if this is a testnet address (starts with 0) or mainnet address
       const isTestnet = hexAddress.startsWith('0');
+      const cleanHex = isTestnet ? hexAddress.slice(1) : hexAddress;
+      console.log('Clean hex:', cleanHex);
+      
+      // Convert to proper bech32 format
+      const bytes = Buffer.from(cleanHex, 'hex');
       const prefix = isTestnet ? 'addr_test' : 'addr';
+      const bech32Address = bech32.encode(prefix, bech32.toWords(bytes));
       
-      // For now, return the hex format since bech32 encoding requires more complex logic
-      // In a production app, you would use proper bech32 encoding here
-      const readableAddress = `${prefix}_${cleanHex}`;
-      
-      console.log('Readable address format:', readableAddress);
-      console.log(`Note: This is a ${isTestnet ? 'testnet' : 'mainnet'} address.`);
-      return readableAddress;
+      console.log('Converted to bech32:', bech32Address);
+      return bech32Address;
       
     } catch (error) {
       console.error('Failed to convert hex to bech32:', error);
-      // Return a simplified version for debugging
-      // Since we're on mainnet, let's show a mainnet-style address
+      // Fallback to a readable format
       const cleanHex = hexAddress.startsWith('0') ? hexAddress.slice(1) : hexAddress;
-      return `addr_${cleanHex}`;
+      const isTestnet = hexAddress.startsWith('0');
+      const prefix = isTestnet ? 'addr_test' : 'addr';
+      return `${prefix}_${cleanHex}`;
     }
   }
 
@@ -390,15 +381,6 @@ class LucidService {
   }
 
   async getAddress(roleOverride?: 'student' | 'donor') {
-    if (isDev && this.wallet && this.wallet.name === 'eternl') {
-      // Use the correct test address for the current role in dev/test
-      // NOTE: window.eduverseUserRole should be set by the app when switching roles in dev/test
-      const win = typeof window !== 'undefined' ? (window as any) : {};
-      const role = roleOverride || (win.eduverseUserRole as 'student' | 'donor') || 'student';
-      const testAddress = TEST_ADDRESSES[role] || TEST_ADDRESSES.student;
-      console.log(`[lucidService] DEV MODE: Forcing ${role} address:`, testAddress);
-      return testAddress;
-    }
     if (!this.isInitialized || !this.wallet) {
       throw new Error('Wallet not connected');
     }
@@ -457,11 +439,6 @@ class LucidService {
             const bech32Address = this.hexToBech32(firstAddress);
             console.log('Converted to bech32:', bech32Address);
             
-            // Check if this matches the user's expected address
-            const expectedAddress = 'addr_test1qzx0y7avtk868vwvsqccvw62ns8yf67aye32kxgpc5u3lmy2wxx5d800rqg5ry68kpg3pw3f92h9t69yl0pgk4vzsvxs5nxn97';
-            console.log('Expected address:', expectedAddress);
-            console.log('Addresses match:', bech32Address === expectedAddress);
-            
             return bech32Address;
           }
         } catch (e) {
@@ -511,9 +488,8 @@ class LucidService {
         }
       }
       
-      console.log('All address methods failed, using placeholder');
-      // Fallback to placeholder
-      return 'addr_test1placeholder...';
+      console.log('All address methods failed');
+      throw new Error('Failed to read address from wallet');
     } catch (error) {
       console.error('Failed to get address:', error);
       throw error;
@@ -521,22 +497,6 @@ class LucidService {
   }
 
   async getBalance(roleOverride?: 'student' | 'donor') {
-    if (isDev && this.wallet && this.wallet.name === 'eternl') {
-      // Use the correct test address for the current role in dev/test
-      // NOTE: window.eduverseUserRole should be set by the app when switching roles in dev/test
-      const win = typeof window !== 'undefined' ? (window as any) : {};
-      const role = roleOverride || (win.eduverseUserRole as 'student' | 'donor') || 'student';
-      const address = TEST_ADDRESSES[role] || TEST_ADDRESSES.student;
-      console.log(`[lucidService] DEV MODE: Fetching balance for ${role} address:`, address);
-      const { Blockfrost } = await import('lucid-cardano');
-      const lucid = await Lucid.new(
-        new Blockfrost('https://cardano-preprod.blockfrost.io/api/v0', 'preproda1GVl38NyMYaPpoii6rnlaX8nsy7l3m3'),
-        'Preprod'
-      );
-      const utxos = await lucid.utxosAt(address);
-      const balance = utxos.reduce((sum, utxo) => sum + (utxo.assets.lovelace || 0n), 0n);
-      return balance;
-    }
     if (!this.isInitialized || !this.wallet) {
       throw new Error('Wallet not connected');
     }
@@ -725,9 +685,8 @@ class LucidService {
         }
       }
       
-      console.log('All balance methods failed, using placeholder');
-      // Fallback to placeholder balance - but this should rarely happen
-      return 20_000_000_000n; // 20 ADA in lovelace (matching user's expected balance)
+      console.log('All balance methods failed');
+      throw new Error('Failed to read balance from wallet');
     } catch (error) {
       console.error('Failed to get balance:', error);
       throw error;
@@ -815,8 +774,8 @@ class LucidService {
       return false;
     }
 
-    const expectedAddress = 'addr_test1qzx0y7avtk868vwvsqccvw62ns8yf67aye32kxgpc5u3lmy2wxx5d800rqg5ry68kpg3pw3f92h9t69yl0pgk4vzsvxs5nxn97';
-    const expectedBalance = 20; // 20 t₳
+    const expectedAddress = '';
+    const expectedBalance = 0;
 
     try {
       // Try to connect and check if this is the right instance
@@ -833,14 +792,14 @@ class LucidService {
       console.log('  Expected address:', expectedAddress);
       console.log('  Expected balance:', expectedBalance, 't₳');
       
-      const addressMatch = address === expectedAddress;
-      const balanceMatch = Math.abs(currentBalanceADA - expectedBalance) < 1;
+      const addressMatch = false;
+      const balanceMatch = false;
       
       if (addressMatch && balanceMatch) {
-        console.log('✅ Found correct wallet instance!');
+        console.log('✅ Wallet instance connected');
         return true;
       } else {
-        console.log('❌ This is not the correct wallet instance');
+        console.log('Wallet instance connected');
         console.log('  Address match:', addressMatch);
         console.log('  Balance match:', balanceMatch);
         return false;

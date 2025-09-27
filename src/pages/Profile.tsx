@@ -222,6 +222,8 @@ export default function Profile() {
       console.log('Profile update triggered with values:', values);
       console.log('Current user before update:', user);
       console.log('Is updating state:', isUpdating);
+      console.log('Form values:', values);
+      console.log('Form is valid:', form.isFieldsTouched());
       
       setIsUpdating(true);
       

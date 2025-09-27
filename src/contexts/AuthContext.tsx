@@ -79,14 +79,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // This should use a session/JWT token if you have one
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.log('No token found, skipping profile fetch');
+          return;
+        }
+        
+        console.log('Fetching profile with token:', token.slice(0, 20) + '...');
+        
+        // Ensure the token is set in apiService before making the request
+        apiService.setAuthToken(token);
+        setToken(token);
+        
         const response = await apiService.auth.getProfile();
         if (response.success && response.data?.user) {
+          console.log('Profile loaded from backend:', response.data.user);
           setUser(response.data.user);
         } else {
+          console.log('No user data in response:', response);
           setUser(null);
         }
       } catch (e) {
+        console.log('Profile fetch failed:', e);
         setUser(null);
       }
     };
@@ -104,24 +118,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Try to get or create user profile
       try {
+        console.log('AuthContext: Attempting wallet login with backend...');
         const response = await apiService.auth.walletLogin({ 
           walletAddress: bech32Address, 
           displayName: displayName || `User ${bech32Address.slice(0, 8)}...` 
         });
+        
+        console.log('AuthContext: Backend response:', response);
       
-      if (response.success) {
+        if (response.success) {
           // Set JWT token for future requests
           if (response.data?.token) {
+            console.log('AuthContext: Setting JWT token');
             apiService.setAuthToken(response.data.token);
             setToken(response.data.token);
             localStorage.setItem('token', response.data.token);
           }
           setUser(response.data.user || response.data);
           message.success('Wallet connected successfully!');
-        return true;
+          return true;
+        } else {
+          console.log('AuthContext: Backend login failed:', response);
         }
       } catch (error) {
-        console.log('AuthContext: Backend not available, using local profile...');
+        console.log('AuthContext: Backend not available, using local profile...', error);
       }
       
       // Create local user profile if backend is not available
@@ -146,16 +166,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const setUserFromWallet = (walletAddress: string, balance?: bigint) => {
-    // Only update other user fields, not walletAddress
-    const existingUser = user;
+    // Create a new user profile for this wallet address
     const newUser: User = {
-      id: existingUser?.id || '',
-      displayName: existingUser?.displayName || '',
-      walletAddress: existingUser?.walletAddress || '', // Do not set from wallet connection
-      role: existingUser?.role || 'donor',
-      institution: existingUser?.institution,
-      researchField: existingUser?.researchField,
-      createdAt: existingUser?.createdAt || new Date().toISOString()
+      id: walletAddress, // Use wallet address as unique ID
+      displayName: `User ${walletAddress.slice(0, 8)}...`,
+      walletAddress: walletAddress,
+      role: 'donor', // Default role
+      createdAt: new Date().toISOString()
     };
     setUser(newUser);
   };
@@ -190,11 +207,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    // Remove wallet address
+    // Remove wallet address and token
     localStorage.removeItem('walletAddress');
+    localStorage.removeItem('token');
+    apiService.removeAuthToken();
     
     // Clear user
     setUser(null);
+    setToken(null);
     message.success('Wallet disconnected successfully');
   };
 
@@ -204,32 +224,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('updateUser called with data:', userData);
       console.log('Current user:', user);
       console.log('Is loading state:', isLoading);
+      console.log('Current token:', token);
+      console.log('Token in localStorage:', localStorage.getItem('token'));
       
       setIsLoading(true);
       
       let updatedUserData = { ...userData };
-      if (isDev && (userData.role === 'student' || userData.role === 'donor')) {
-        updatedUserData.walletAddress = TEST_ADDRESSES[userData.role];
-      }
       
       // Update local user data
       if (user) {
         console.log('Updating local user data...');
-        const updatedUser = { ...user, ...updatedUserData };
-        console.log('Updated user object:', updatedUser);
-        setUser(updatedUser);
+        const locallyUpdatedUser = { ...user, ...updatedUserData };
+        console.log('Locally updated user object (pre-backend):', locallyUpdatedUser);
+        setUser(locallyUpdatedUser);
         
         // Try to update on backend if available
         try {
           console.log('Attempting backend update...');
           console.log('Sending data to backend:', updatedUserData);
+          console.log('API service token status:', !!apiService.api.defaults.headers.common['Authorization']);
           
-          const response = await apiService.put('/auth/profile', updatedUserData);
+          const response = await apiService.auth.updateProfile(updatedUserData);
           console.log('Backend response:', response);
-      
-      if (response.success) {
-            console.log('Backend update successful');
-        message.success('Profile updated successfully!');
+          
+          if (response.success && response.data?.user) {
+            console.log('Backend update successful, syncing local user from backend');
+            setUser(response.data.user);
+            message.success('Profile updated successfully!');
+          } else if (response.success) {
+            console.log('Backend update successful but no user payload; keeping local updates');
+            message.success('Profile updated successfully!');
           } else {
             console.log('Backend update failed:', response);
             message.error('Backend update failed: ' + (response.message || 'Unknown error'));

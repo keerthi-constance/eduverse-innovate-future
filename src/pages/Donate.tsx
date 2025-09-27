@@ -48,11 +48,6 @@ import nftPolicy from '../../nft-policy.json';
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
 
-// TEST WALLET ADDRESSES (for development/testing only)
-const TEST_ADDRESSES = {
-  student: 'addr_test1qzcpuxeu3fuskvu76vee7hgvjs2q057ddh06uuh3mweresst308dyd6xvy8zy4ah8jwdu8va6zw9y4k42vcztdznj24srgyv0w',
-  donor: 'addr_test1qzx0y7avtk868vwvsqccvw62ns8yf67aye32kxgpc5u3lmy2wxx5d800rqg5ry68kpg3pw3f92h9t69yl0pgk4vzsvxs5nxn97',
-};
 const isDev = import.meta.env.MODE === 'development' || import.meta.env.MODE === 'test';
 
 const Donate: React.FC = () => {
@@ -141,8 +136,8 @@ const Donate: React.FC = () => {
       console.log('Student address:', studentAddress);
       console.log('Amount in lovelace:', amountLovelace);
 
-      // Validate address format
-      if (!studentAddress || !studentAddress.startsWith('addr_')) {
+      // Validate address format - accept various Cardano address formats
+      if (!studentAddress || (!studentAddress.startsWith('addr_') && !studentAddress.startsWith('addr_test'))) {
         throw new Error('Invalid recipient address format');
       }
 
@@ -163,8 +158,8 @@ const Donate: React.FC = () => {
 
       console.log('Sending transaction with Lucid...');
       
-      // In confirmDonation, override the address with the student test address in dev/test
-      const senderAddress = isDev ? TEST_ADDRESSES.student : address;
+      // Use the connected wallet address as sender
+      const senderAddress = address;
       
       // Enable wallet and select the correct API
       const namiApi = window.cardano?.nami ? await window.cardano.nami.enable() : undefined;

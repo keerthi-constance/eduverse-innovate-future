@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Update Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Profile Update Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Direct API Call</h2>
+        <p>This tests the backend API directly without the frontend.</p>
+        <button onclick="testDirectAPI()">Test Direct API</button>
+        <div id="direct-api-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Frontend Integration</h2>
+        <p>This tests the frontend profile update functionality.</p>
+        <button onclick="testFrontendIntegration()">Test Frontend Integration</button>
+        <div id="frontend-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: Form Submission</h2>
+        <p>This tests the form submission process.</p>
+        <form id="test-form">
+            <input type="text" name="displayName" placeholder="Display Name" value="Test User">
+            <input type="email" name="email" placeholder="Email" value="test@example.com">
+            <input type="text" name="institution" placeholder="Institution" value="Test University">
+            <input type="text" name="researchField" placeholder="Research Field" value="Computer Science">
+            <select name="role">
+                <option value="student">Student</option>
+                <option value="donor">Donor</option>
+            </select>
+            <button type="submit">Submit Form</button>
+        </form>
+        <div id="form-result"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api';
+        let currentToken = null;
+
+        async function testDirectAPI() {
+            const resultDiv = document.getElementById('direct-api-result');
+            resultDiv.innerHTML = '<p class="info">Testing direct API...</p>';
+            
+            try {
+                // Step 1: Login
+                const loginResponse = await fetch(`${API_BASE_URL}/auth/wallet-login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        walletAddress: 'addr_test1qzx0y7avtk868vwvsqccvw62ns8yf67aye32kxgpc5u3lmy2wxx5d800rqg5ry68kpg3pw3f92h9t69yl0pgk4vzsvxs5nxn97',
+                        displayName: 'Test User'
+                    })
+                });
+                
+                const loginData = await loginResponse.json();
+                if (!loginData.success) throw new Error('Login failed');
+                
+                currentToken = loginData.data.token;
+                resultDiv.innerHTML += '<p class="success">✅ Login successful</p>';
+                
+                // Step 2: Update Profile
+                const updateResponse = await fetch(`${API_BASE_URL}/auth/profile`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify({
+                        displayName: 'Updated Test User',
+                        email: 'updated@example.com',
+                        role: 'student'
+                    })
+                });
+                
+                const updateData = await updateResponse.json();
+                if (updateData.success) {
+                    resultDiv.innerHTML += '<p class="success">✅ Profile update successful</p>';
+                } else {
+                    resultDiv.innerHTML += '<p class="error">❌ Profile update failed: ' + updateData.message + '</p>';
+                }
+                
+                // Step 3: Verify Update
+                const fetchResponse = await fetch(`${API_BASE_URL}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const fetchData = await fetchResponse.json();
+                if (fetchData.success) {
+                    resultDiv.innerHTML += '<p class="success">✅ Profile fetch successful</p>';
+                    resultDiv.innerHTML += '<p class="info">Updated user: ' + JSON.stringify(fetchData.data.user, null, 2) + '</p>';
+                } else {
+                    resultDiv.innerHTML += '<p class="error">❌ Profile fetch failed</p>';
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += '<p class="error">❌ Error: ' + error.message + '</p>';
+            }
+        }
+
+        async function testFrontendIntegration() {
+            const resultDiv = document.getElementById('frontend-result');
+            resultDiv.innerHTML = '<p class="info">Testing frontend integration...</p>';
+            
+            try {
+                // This would test the actual frontend code
+                // For now, we'll just show that the test is ready
+                resultDiv.innerHTML += '<p class="info">Frontend integration test ready. Open the actual app to test.</p>';
+                resultDiv.innerHTML += '<p class="info">Go to: <a href="http://localhost:5173/profile" target="_blank">http://localhost:5173/profile</a></p>';
+                
+            } catch (error) {
+                resultDiv.innerHTML += '<p class="error">❌ Error: ' + error.message + '</p>';
+            }
+        }
+
+        document.getElementById('test-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('form-result');
+            resultDiv.innerHTML = '<p class="info">Testing form submission...</p>';
+            
+            try {
+                const formData = new FormData(e.target);
+                const values = Object.fromEntries(formData.entries());
+                
+                resultDiv.innerHTML += '<p class="info">Form values: ' + JSON.stringify(values, null, 2) + '</p>';
+                
+                if (currentToken) {
+                    const updateResponse = await fetch(`${API_BASE_URL}/auth/profile`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${currentToken}`
+                        },
+                        body: JSON.stringify(values)
+                    });
+                    
+                    const updateData = await updateResponse.json();
+                    if (updateData.success) {
+                        resultDiv.innerHTML += '<p class="success">✅ Form submission successful</p>';
+                    } else {
+                        resultDiv.innerHTML += '<p class="error">❌ Form submission failed: ' + updateData.message + '</p>';
+                    }
+                } else {
+                    resultDiv.innerHTML += '<p class="error">❌ No token available. Please run Test 1 first.</p>';
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += '<p class="error">❌ Error: ' + error.message + '</p>';
+            }
+        });
+    </script>
+</body>
+</html>
+

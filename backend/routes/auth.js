@@ -128,7 +128,9 @@ router.post('/wallet-login', async (req, res) => {
       displayName: displayName,
       bodyKeys: Object.keys(req.body),
       fullAddress: walletAddress,
-      addressLength: walletAddress ? walletAddress.length : 0
+      addressLength: walletAddress ? walletAddress.length : 0,
+      addressStart: walletAddress ? walletAddress.slice(0, 20) : 'none',
+      addressEnd: walletAddress ? walletAddress.slice(-20) : 'none'
     });
 
     // Validate wallet address
@@ -385,7 +387,27 @@ router.put('/profile', protect, async (req, res) => {
     // Update basic profile info
     if (name !== undefined) user.name = name;
     if (displayName !== undefined) user.displayName = displayName;
-    if (email !== undefined) user.email = email;
+    
+    // Handle email update with validation
+    if (email !== undefined) {
+      // Check if email is already taken by another user
+      if (email && email !== user.email) {
+        const existingUser = await User.findOne({ 
+          email: email, 
+          _id: { $ne: user._id } // Exclude current user
+        });
+        
+        if (existingUser) {
+          logger.warn(`🔐 [AUTH] Email already taken: ${email}`);
+          return res.status(400).json({
+            success: false,
+            message: 'Email address is already in use by another account'
+          });
+        }
+      }
+      user.email = email;
+    }
+    
     if (institution !== undefined) user.institution = institution;
     if (researchField !== undefined) user.researchField = researchField;
     
@@ -445,6 +467,25 @@ router.put('/profile', protect, async (req, res) => {
 
   } catch (error) {
     logger.error('🔐 [AUTH] Update profile error:', error);
+    
+    // Handle specific database errors
+    if (error.code === 11000) {
+      // Duplicate key error
+      const field = Object.keys(error.keyPattern)[0];
+      let message = 'A field must be unique';
+      
+      if (field === 'email') {
+        message = 'Email address is already in use by another account';
+      } else if (field === 'walletAddress') {
+        message = 'Wallet address is already registered';
+      }
+      
+      return res.status(400).json({
+        success: false,
+        message: message
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Failed to update profile',

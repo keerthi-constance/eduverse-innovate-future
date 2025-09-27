@@ -1,13 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { lucidService } from '../services/lucidService';
 import { useAuth } from '../contexts/AuthContext';
-import { ensureBech32Address } from '../contexts/AuthContext';
-
-const TEST_ADDRESSES = {
-  student: 'addr_test1qzcpuxeu3fuskvu76vee7hgvjs2q057ddh06uuh3mweresst308dyd6xvy8zy4ah8jwdu8va6zw9y4k42vcztdznj24srgyv0w',
-  donor: 'addr_test1qzx0y7avtk868vwvsqccvw62ns8yf67aye32kxgpc5u3lmy2wxx5d800rqg5ry68kpg3pw3f92h9t69yl0pgk4vzsvxs5nxn97',
-};
-const isDev = import.meta.env.MODE === 'development' || import.meta.env.MODE === 'test';
 
 export const useLucidWallet = () => {
   const [connected, setConnected] = useState(false);
@@ -15,7 +8,7 @@ export const useLucidWallet = () => {
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user, loginWithWallet } = useAuth();
 
   // Helper to get the current role for dev/test
   const currentRole = user?.role === 'donor' ? 'donor' : 'student';
@@ -39,6 +32,13 @@ export const useLucidWallet = () => {
       setAddress(walletAddress);
       setBalance(Number(walletBalance));
       setConnected(true);
+      
+      // Ensure backend session is established and JWT stored
+      try {
+        await loginWithWallet(walletAddress);
+      } catch (e) {
+        console.log('loginWithWallet failed after wallet connect:', e);
+      }
       
       console.log('Wallet connected:', { address: walletAddress, balance: walletBalance });
     } catch (err) {
@@ -136,6 +136,13 @@ export const useLucidWallet = () => {
                 balance: walletBalance,
                 balanceADA: Number(walletBalance) / 1_000_000
               });
+
+              // Establish backend session if not already
+              try {
+                await loginWithWallet(walletAddress);
+              } catch (e) {
+                console.log('loginWithWallet failed during init:', e);
+              }
             } catch (err) {
               console.error('useLucidWallet: Failed to get existing wallet data:', err);
               // If we can't get wallet data, disconnect
@@ -171,26 +178,9 @@ export const useLucidWallet = () => {
     }
   }, [connected, loading, connect]);
 
-  // Helper to get the effective address for dev/test
-  const getEffectiveAddress = () => {
-    if (isDev && user?.role && TEST_ADDRESSES[user.role]) {
-      return ensureBech32Address(TEST_ADDRESSES[user.role]);
-    }
-    return ensureBech32Address(address);
-  };
-
-  // When setting address and balance, always use the effective address in dev/test
-  useEffect(() => {
-    if (isDev && user?.role && TEST_ADDRESSES[user.role]) {
-      setAddress(ensureBech32Address(TEST_ADDRESSES[user.role]));
-      // Optionally, fetch the balance for the test address
-      lucidService.getBalance(currentRole).then(bal => setBalance(Number(bal)));
-    }
-  }, [isDev, user?.role, currentRole]);
-
   return {
     connected,
-    address: getEffectiveAddress(),
+    address,
     balance,
     loading,
     error,
