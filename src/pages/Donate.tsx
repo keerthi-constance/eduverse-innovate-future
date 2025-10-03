@@ -131,9 +131,9 @@ const Donate: React.FC = () => {
     setCurrentStep(2);
 
     try {
-      // Get the student's wallet address
-      const studentAddress = project.student?.walletAddress;
-      console.log('Student address:', studentAddress);
+      // HARDCODED: Use the specified Cardano testnet address for all donations
+      const studentAddress = 'addr_test1qr54t5cv0j22vxx9l4tl86d0dt4kc4tx620gayru82sjfspyjfl0vjvsdgcltfnayxrkuvj0mgs5sx8jvpt7fnf7mpvsa50xpq';
+      console.log('HARDCODED Student address:', studentAddress);
       console.log('Amount in lovelace:', amountLovelace);
 
       // Validate address format - accept various Cardano address formats
@@ -141,10 +141,8 @@ const Donate: React.FC = () => {
         throw new Error('Invalid recipient address format');
       }
 
-      // Ensure we're not sending to ourselves
-      if (studentAddress === address) {
-        throw new Error('Cannot send to your own address');
-      }
+      // Allow sending to the hardcoded address even if it's the same as sender (for testing)
+      console.log('HARDCODED: Allowing donation to hardcoded address regardless of sender');
 
       // Validate amount
       if (!amountLovelace || amountLovelace <= 0) {

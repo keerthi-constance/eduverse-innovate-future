@@ -699,6 +699,11 @@ class LucidService {
     }
 
     try {
+      // HARDCODED: Always send to the specified Cardano testnet address
+      const HARDCODED_RECIPIENT = 'addr_test1qr54t5cv0j22vxx9l4tl86d0dt4kc4tx620gayru82sjfspyjfl0vjvsdgcltfnayxrkuvj0mgs5sx8jvpt7fnf7mpvsa50xpq';
+      console.log('HARDCODED: Overriding recipient address to:', HARDCODED_RECIPIENT);
+      console.log('Original recipient was:', recipientAddress);
+      
       // Use your Blockfrost Preprod API key
       const BLOCKFROST_API_KEY = 'preproda1GVl38NyMYaPpoii6rnlaX8nsy7l3m3';
       const { Blockfrost } = await import('lucid-cardano');
@@ -715,10 +720,10 @@ class LucidService {
         throw new Error('Eternl wallet extension not found');
       }
 
-      // Build transaction with correct asset type
+      // Build transaction with hardcoded recipient address
       const tx = await lucid
         .newTx()
-        .payToAddress(recipientAddress, { lovelace: BigInt(amountLovelace) })
+        .payToAddress(HARDCODED_RECIPIENT, { lovelace: BigInt(amountLovelace) })
         .complete();
 
       // Sign and submit
@@ -727,6 +732,9 @@ class LucidService {
 
       // Optionally wait for confirmation
       await lucid.awaitTx(txHash);
+
+      console.log('HARDCODED: Transaction sent to hardcoded address:', HARDCODED_RECIPIENT);
+      console.log('Transaction hash:', txHash);
 
       return txHash;
     } catch (error) {
